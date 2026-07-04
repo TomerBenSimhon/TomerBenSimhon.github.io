@@ -98,7 +98,7 @@
     max-width:56ch; color:var(--text-lo); font-size:16px; margin:0 0 32px;
   }
 
-  .toolbar-buttons{display:flex; flex-wrap:wrap; gap:10px;}
+  .toolbar-buttons{display:flex; flex-wrap:wrap; gap:10px; position:relative;}
   .btn{
     font-family:var(--mono); font-size:12.5px; letter-spacing:0.03em;
     color:var(--text-hi);
@@ -107,9 +107,20 @@
     border-radius:var(--radius);
     padding:9px 14px;
     display:inline-flex; align-items:center; gap:7px;
+    position:relative;
   }
   .btn:hover{border-color:var(--accent-blue); color:var(--accent-blue); text-decoration:none;}
   .btn.primary{border-color:var(--accent-blue-dim); color:var(--accent-blue);}
+
+  .copy-toast{
+    position:absolute; top:-30px; left:0;
+    font-family:var(--mono); font-size:11px; color:var(--accent-green);
+    background:var(--bg-panel-head); border:1px solid var(--line-soft); border-radius:var(--radius);
+    padding:4px 8px; white-space:nowrap;
+    opacity:0; pointer-events:none;
+    transition:opacity 0.15s ease;
+  }
+  .copy-toast.show{opacity:1;}
 
   /* ---------- Section headers ---------- */
   section{padding:48px 0;}
@@ -429,7 +440,7 @@
     </div>
     <p class="tagline">Open to Unity developer roles. The fastest way to reach me is below.</p>
     <div class="toolbar-buttons">
-      <a class="btn primary" href="mailto:tomerbensim0@gmail.com">Email ↗</a>
+      <a class="btn primary" id="email-link" href="mailto:tomerbensim0@gmail.com" data-email="tomerbensim0@gmail.com">Email ↗<span class="copy-toast" id="email-toast">Copied tomerbensim0@gmail.com</span></a>
       <a class="btn" href="https://github.com/TomerBenSimhon" target="_blank" rel="noopener">GitHub ↗</a>
       <a class="btn" href="https://www.linkedin.com/in/tomer-ben-simhon" target="_blank" rel="noopener">LinkedIn ↗</a>
       <a class="btn" href="https://yourname.itch.io" target="_blank" rel="noopener">itch.io ↗</a>
@@ -441,6 +452,90 @@
   </footer>
 
 </main>
+
+<script>
+  // Keep the toolbar tab highlighted for whichever section is on screen,
+  // and update it instantly on click too (no waiting for scroll to catch up).
+  (function(){
+    var tabs = Array.prototype.slice.call(document.querySelectorAll('nav.tabs a'));
+    var sections = tabs.map(function(tab){
+      return document.querySelector(tab.getAttribute('href'));
+    }).filter(Boolean);
+
+    var suppressScroll = false;
+    var suppressTimer = null;
+
+    function setActive(id){
+      tabs.forEach(function(tab){
+        tab.classList.toggle('active', tab.getAttribute('href') === '#' + id);
+      });
+    }
+
+    function isAtBottom(){
+      return window.innerHeight + Math.ceil(window.scrollY) >= document.documentElement.scrollHeight - 2;
+    }
+
+    // Which section is "current" is decided by comparing scroll position
+    // directly against each section's position on the page — not by a thin
+    // intersection band, which a short section can scroll past entirely
+    // during a fast scroll without ever triggering.
+    function updateFromScrollPosition(){
+      if (suppressScroll) return;
+      var referenceLine = window.scrollY + window.innerHeight * 0.35;
+      var current = sections[0].id;
+      for (var i = 0; i < sections.length; i++){
+        if (sections[i].offsetTop <= referenceLine){
+          current = sections[i].id;
+        }
+      }
+      if (isAtBottom()){
+        current = sections[sections.length - 1].id;
+      }
+      setActive(current);
+    }
+
+    // Clicking a tab sets it active immediately and ignores scroll-tracking
+    // until the smooth-scroll settles, so it doesn't flicker through
+    // whatever sections it passes on the way there.
+    tabs.forEach(function(tab){
+      tab.addEventListener('click', function(){
+        setActive(tab.getAttribute('href').slice(1));
+        suppressScroll = true;
+        clearTimeout(suppressTimer);
+        suppressTimer = setTimeout(function(){ suppressScroll = false; }, 800);
+      });
+    });
+
+    // A real manual scroll (wheel/touch/keyboard) should immediately hand
+    // control back to scroll-tracking, even mid-suppression.
+    ['wheel', 'touchmove', 'keydown'].forEach(function(evt){
+      window.addEventListener(evt, function(){
+        suppressScroll = false;
+        clearTimeout(suppressTimer);
+      }, { passive: true });
+    });
+
+    window.addEventListener('scroll', updateFromScrollPosition, { passive: true });
+    window.addEventListener('resize', updateFromScrollPosition, { passive: true });
+    updateFromScrollPosition();
+  })();
+
+  // The mailto: link only does something if the visitor has a desktop mail
+  // client configured. As a fallback that always works, clicking it also
+  // copies the address to the clipboard and flashes a small confirmation.
+  (function(){
+    var emailLink = document.getElementById('email-link');
+    var toast = document.getElementById('email-toast');
+    if (!emailLink || !toast || !navigator.clipboard) return;
+
+    emailLink.addEventListener('click', function(){
+      navigator.clipboard.writeText(emailLink.getAttribute('data-email')).then(function(){
+        toast.classList.add('show');
+        setTimeout(function(){ toast.classList.remove('show'); }, 1800);
+      });
+    });
+  })();
+</script>
 
 </body>
 </html>
