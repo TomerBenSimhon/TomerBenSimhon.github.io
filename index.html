@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tomer Ben Simhon — Unity Developer</title>
+<meta name="description" content="Unity / C# developer portfolio — player controllers, custom tools, and gameplay systems.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-void: #1b1b1c;
+    --bg-panel: #232324;
+    --bg-panel-head: #2d2d2f;
+    --bg-field: #29292b;
+    --line: #101011;
+    --line-soft: #3a3a3c;
+    --text-hi: #e7e7e4;
+    --text-lo: #8c8c8b;
+    --text-dim: #616163;
+    --accent-blue: #5aabe8;
+    --accent-blue-dim: #3a698c;
+    --accent-green: #7ec699;
+    --accent-amber: #d7a34e;
+    --radius: 3px;
+    --mono: 'JetBrains Mono', monospace;
+    --display: 'Space Grotesk', sans-serif;
+    --body: 'Inter', sans-serif;
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--bg-void);
+    color:var(--text-hi);
+    font-family:var(--body);
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--accent-blue); text-decoration:none;}
+  a:hover{text-decoration:underline;}
+  a:focus-visible, button:focus-visible, summary:focus-visible{
+    outline:2px solid var(--accent-blue);
+    outline-offset:2px;
+  }
+
+  .wrap{max-width:900px; margin:0 auto; padding:0 24px;}
+
+  /* ---------- Top toolbar / nav ---------- */
+  header.toolbar{
+    position:sticky; top:0; z-index:50;
+    background:var(--bg-panel-head);
+    border-bottom:1px solid var(--line);
+  }
+  .toolbar-inner{
+    max-width:900px; margin:0 auto; padding:0 24px;
+    display:flex; align-items:center; justify-content:space-between;
+    height:52px;
+  }
+  .brand{
+    font-family:var(--mono); font-size:13px; color:var(--text-lo);
+    letter-spacing:0.02em;
+  }
+  .brand strong{color:var(--text-hi); font-weight:600;}
+  nav.tabs{display:flex; gap:2px;}
+  nav.tabs a{
+    font-family:var(--mono); font-size:12px; letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:var(--text-lo);
+    padding:8px 12px;
+    border-bottom:2px solid transparent;
+  }
+  nav.tabs a:hover{color:var(--text-hi); text-decoration:none;}
+  nav.tabs a.active{color:var(--accent-blue); border-bottom-color:var(--accent-blue);}
+
+  /* ---------- Hero ---------- */
+  .hero{padding:72px 0 56px;}
+  .code-block{
+    font-family:var(--mono); font-size:13px; color:var(--text-dim);
+    line-height:1.9; margin-bottom:28px;
+  }
+  .code-block .kw{color:var(--accent-blue-dim);}
+  .code-block .cl{color:var(--accent-green);}
+  .code-block .comment{color:var(--text-dim);}
+
+  h1.name{
+    font-family:var(--display); font-weight:700;
+    font-size:clamp(2.2rem, 6vw, 3.4rem);
+    margin:0 0 8px;
+    letter-spacing:-0.01em;
+  }
+  p.role{
+    font-family:var(--mono); font-size:15px; color:var(--accent-blue);
+    margin:0 0 20px;
+  }
+  p.pitch{
+    max-width:56ch; color:var(--text-lo); font-size:16px; margin:0 0 32px;
+  }
+
+  .toolbar-buttons{display:flex; flex-wrap:wrap; gap:10px;}
+  .btn{
+    font-family:var(--mono); font-size:12.5px; letter-spacing:0.03em;
+    color:var(--text-hi);
+    background:var(--bg-field);
+    border:1px solid var(--line-soft);
+    border-radius:var(--radius);
+    padding:9px 14px;
+    display:inline-flex; align-items:center; gap:7px;
+  }
+  .btn:hover{border-color:var(--accent-blue); color:var(--accent-blue); text-decoration:none;}
+  .btn.primary{border-color:var(--accent-blue-dim); color:var(--accent-blue);}
+
+  /* ---------- Section headers ---------- */
+  section{padding:48px 0;}
+  section + section{border-top:1px solid var(--line);}
+  .section-head{
+    display:flex; align-items:baseline; gap:12px;
+    margin-bottom:28px;
+  }
+  .section-head .idx{font-family:var(--mono); color:var(--text-dim); font-size:13px;}
+  h2.section-title{
+    font-family:var(--display); font-weight:600;
+    font-size:1.5rem; margin:0; color:var(--text-hi);
+  }
+
+  /* ---------- Inspector panel (project card) ---------- */
+  .panel{
+    background:var(--bg-panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    margin-bottom:28px;
+    overflow:hidden;
+  }
+  .panel-head{
+    background:var(--bg-panel-head);
+    padding:12px 16px;
+    display:flex; align-items:center; justify-content:space-between;
+    border-bottom:1px solid var(--line);
+    flex-wrap:wrap; gap:8px;
+  }
+  .panel-head .title{
+    font-family:var(--mono); font-size:14.5px; font-weight:600; color:var(--text-hi);
+    display:flex; align-items:center; gap:8px;
+  }
+  .panel-head .title .icon{color:var(--accent-blue); font-size:13px;}
+  .chip{
+    font-family:var(--mono); font-size:10.5px; letter-spacing:0.05em; text-transform:uppercase;
+    padding:3px 8px; border-radius:2px; border:1px solid var(--line-soft);
+    color:var(--text-lo);
+  }
+  .chip.amber{color:var(--accent-amber); border-color:var(--accent-amber);}
+  .chip.green{color:var(--accent-green); border-color:var(--accent-green);}
+
+  .media-slot{
+    background-image:
+      linear-gradient(45deg, #262628 25%, transparent 25%),
+      linear-gradient(-45deg, #262628 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #262628 75%),
+      linear-gradient(-45deg, transparent 75%, #262628 75%);
+    background-size:16px 16px;
+    background-position:0 0, 0 8px, 8px -8px, -8px 0px;
+    background-color:#1f1f20;
+    height:180px;
+    display:flex; align-items:center; justify-content:center;
+    border-bottom:1px solid var(--line);
+  }
+  .media-slot span{
+    font-family:var(--mono); font-size:11.5px; color:var(--text-dim);
+    background:var(--bg-void); padding:5px 10px; border-radius:2px;
+    border:1px solid var(--line-soft);
+  }
+
+  .fields{padding:14px 16px; border-bottom:1px solid var(--line);}
+  .field-row{
+    display:flex; gap:16px; padding:5px 0; font-size:13.5px;
+  }
+  .field-row .label{
+    font-family:var(--mono); color:var(--accent-blue); flex:0 0 110px; font-size:12.5px;
+  }
+  .field-row .value{color:var(--text-hi);}
+
+  .systems{padding:8px 16px 14px;}
+  details.system{
+    border-bottom:1px solid var(--line);
+  }
+  details.system:last-child{border-bottom:none;}
+  details.system summary{
+    cursor:pointer; list-style:none;
+    padding:11px 4px;
+    font-family:var(--mono); font-size:13.5px; color:var(--text-hi);
+    display:flex; align-items:center; gap:8px;
+  }
+  details.system summary::-webkit-details-marker{display:none;}
+  details.system summary::before{
+    content:"▸"; color:var(--accent-blue); font-size:11px;
+    transition:transform 0.15s ease;
+    display:inline-block;
+  }
+  details.system[open] summary::before{transform:rotate(90deg);}
+  details.system .system-body{
+    padding:0 4px 14px 22px;
+    color:var(--text-lo); font-size:14px; font-family:var(--body);
+  }
+
+  .panel-foot{
+    padding:12px 16px;
+    display:flex; gap:10px; flex-wrap:wrap;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    details.system summary::before{transition:none;}
+    html{scroll-behavior:auto;}
+  }
+
+  /* ---------- Skills (project settings style) ---------- */
+  .settings-group{margin-bottom:26px;}
+  .settings-group h3{
+    font-family:var(--mono); font-size:12px; letter-spacing:0.08em; text-transform:uppercase;
+    color:var(--text-dim); margin:0 0 10px; font-weight:500;
+  }
+  .settings-list{
+    background:var(--bg-panel); border:1px solid var(--line); border-radius:var(--radius);
+  }
+  .settings-row{
+    display:flex; gap:16px; padding:10px 16px; font-size:13.5px;
+    border-bottom:1px solid var(--line);
+  }
+  .settings-row:last-child{border-bottom:none;}
+  .settings-row .label{font-family:var(--mono); color:var(--accent-blue); flex:0 0 170px; font-size:12.5px;}
+  .settings-row .value{color:var(--text-hi);}
+
+  /* ---------- Footer / contact ---------- */
+  footer{padding:48px 0 64px;}
+  footer p.tagline{color:var(--text-lo); margin-bottom:24px; max-width:50ch;}
+  .foot-note{
+    margin-top:36px; font-family:var(--mono); font-size:11.5px; color:var(--text-dim);
+  }
+
+  @media (max-width:640px){
+    .toolbar-inner{height:auto; flex-direction:column; align-items:flex-start; padding:10px 24px;}
+    nav.tabs{padding-bottom:6px;}
+    .field-row .label, .settings-row .label{flex:0 0 90px;}
+  }
+</style>
+</head>
+<body>
+
+<header class="toolbar">
+  <div class="toolbar-inner">
+    <div class="brand">Tomer<strong>BenSimhon</strong>.cs</div>
+    <nav class="tabs">
+      <a href="#home" class="active">Home</a>
+      <a href="#projects">Projects</a>
+      <a href="#skills">Skills</a>
+      <a href="#contact">Contact</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section id="home" class="hero">
+    <div class="code-block">
+      <span class="comment">// TomerBenSimhon.cs</span><br>
+      <span class="kw">using</span> UnityEngine;<br>
+      <span class="kw">using</span> PlayerController;<br>
+      <span class="kw">using</span> CombatSystems;<br>
+      <span class="kw">using</span> CustomEditorTools;<br><br>
+      <span class="kw">public class</span> <span class="cl">Developer</span> : MonoBehaviour
+    </div>
+    <h1 class="name">Tomer Ben Simhon</h1>
+    <p class="role">// Unity Developer — Gameplay Systems &amp; Tools</p>
+    <p class="pitch">I build the systems underneath the game: player controllers that feel right, modular mechanics, and editor tools that make the rest of the team faster. C# and Unity, end to end.</p>
+    <div class="toolbar-buttons">
+      <a class="btn primary" href="#projects">▸ View Projects</a>
+      <a class="btn" href="https://github.com/TomerBenSimhon" target="_blank" rel="noopener">GitHub ↗</a>
+      <a class="btn" href="#contact">Contact ↗</a>
+    </div>
+  </section>
+
+  <section id="projects">
+    <div class="section-head">
+      <span class="idx">01</span>
+      <h2 class="section-title">Projects</h2>
+    </div>
+
+    <!-- PROJECT 1 -->
+    <div class="panel">
+      <div class="panel-head">
+        <span class="title"><span class="icon">▣</span>BlueSwordNinja.cs</span>
+        <span class="chip">2D Action Platformer</span>
+      </div>
+      <div class="media-slot"><span>gameplay clip — coming soon</span></div>
+      <div class="fields">
+        <div class="field-row"><span class="label">Genre</span><span class="value">2D Action Platformer</span></div>
+        <div class="field-row"><span class="label">Engine</span><span class="value">Unity 2022.3.55f1</span></div>
+        <div class="field-row"><span class="label">Role</span><span class="value">Solo developer — all code &amp; mechanics</span></div>
+      </div>
+      <div class="systems">
+        <details class="system" open>
+          <summary>Player Controller</summary>
+          <div class="system-body">Fluid, responsive movement with variable jump height, adaptive gravity (falls are pulled down harder than rises for snappier arcs), a jump buffer window so inputs pressed just before landing still register, and coyote time so jumps still fire for a few frames after leaving a ledge.</div>
+        </details>
+        <details class="system">
+          <summary>The Sword — Platforming &amp; Combat Tool</summary>
+          <div class="system-body">A single tool doing double duty. Thrown at wooden walls it sticks and becomes a temporary platform, and can be recalled back to the player at any time. As a weapon it powers a dash attack, and the same throw can stun enemies on hit — one input, reused across traversal and combat.</div>
+        </details>
+        <details class="system">
+          <summary>Blob Enemy AI (State Machine)</summary>
+          <div class="system-body">A finite state machine driving Patrol, Search, and Attack behavior, so the enemy reacts differently depending on whether it has spotted the player, lost track of them, or is actively engaging.</div>
+        </details>
+      </div>
+      <div class="panel-foot">
+        <a class="btn" href="https://github.com/TomerBenSimhon/2D-Platformer-IAC" target="_blank" rel="noopener">View Source ▸</a>
+      </div>
+    </div>
+
+    <!-- PROJECT 2 -->
+    <div class="panel">
+      <div class="panel-head">
+        <span class="title"><span class="icon">▣</span>SkyRoadsRemake.cs</span>
+        <span class="chip">3D Platformer</span>
+      </div>
+      <div class="media-slot"><span>gameplay clip — coming soon</span></div>
+      <div class="fields">
+        <div class="field-row"><span class="label">Genre</span><span class="value">3D Platformer</span></div>
+        <div class="field-row"><span class="label">Engine</span><span class="value">Unity 6000.3.2f1</span></div>
+        <div class="field-row"><span class="label">Role</span><span class="value">Solo developer — all code &amp; mechanics</span></div>
+      </div>
+      <div class="systems">
+        <details class="system" open>
+          <summary>Player Controller</summary>
+          <div class="system-body">The same design goals as Blue Sword Ninja's controller — smooth, fluid movement, variable jump height, adaptive gravity — reworked for 3D space and traction on moving/tilting platforms.</div>
+        </details>
+        <details class="system">
+          <summary>Modular Platform System</summary>
+          <div class="system-body">An interface-driven set of platform types — boost, refuel, slippery, and death — so each platform only needs to implement a shared behavior contract. New platform types can be added without touching the controller.</div>
+        </details>
+        <details class="system">
+          <summary>Custom Editor Tools</summary>
+          <div class="system-body">A grid-based Prefab Painter — effectively a 3D equivalent of Unity's 2D tilemap, built because the level's platforms follow a fixed grid. Paired with an Effect System and a Global Event script: a reusable component that any object can attach camera shake, sound, and particle effects to, triggered off shared events.</div>
+        </details>
+      </div>
+      <div class="panel-foot">
+        <a class="btn" href="https://github.com/TomerBenSimhon/Skyroads---Remake" target="_blank" rel="noopener">View Source ▸</a>
+      </div>
+    </div>
+
+    <!-- PROJECT 3 -->
+    <div class="panel">
+      <div class="panel-head">
+        <span class="title"><span class="icon">▣</span>ProjectWallE.cs</span>
+        <span class="chip">3D Action Tower Defense</span>
+      </div>
+      <div class="media-slot"><span>gameplay clip — coming soon</span></div>
+      <div class="fields">
+        <div class="field-row"><span class="label">Genre</span><span class="value">3D Action Tower Defense</span></div>
+        <div class="field-row"><span class="label">Engine</span><span class="value">Unity 6000.4.6f1</span></div>
+        <div class="field-row"><span class="label">Role</span><span class="value">Team project — player controller &amp; vehicle physics</span></div>
+      </div>
+      <div class="systems">
+        <details class="system" open>
+          <summary>Dual Player Controller — Robot / Car</summary>
+          <div class="system-body">A robot that moves, jumps, and shoots, and can transform on the fly into a car for faster traversal. The car mode runs on wheel physics with real tire-traction calculations rather than a simple arcade approximation, so handling responds to speed and turning the way an actual vehicle would.</div>
+        </details>
+      </div>
+      <div class="panel-foot">
+        <a class="btn" href="https://github.com/danielnoam/ProjectWallE" target="_blank" rel="noopener">View Source ▸</a>
+      </div>
+    </div>
+
+    <!-- PROJECT 4 - PLACEHOLDER -->
+    <div class="panel">
+      <div class="panel-head">
+        <span class="title"><span class="icon">▣</span>Untitled_Prototype.cs</span>
+        <span class="chip amber">In Progress — Systems Complete</span>
+      </div>
+      <div class="media-slot"><span>art &amp; level pass in progress</span></div>
+      <div class="fields">
+        <div class="field-row"><span class="label">Status</span><span class="value">Full mechanics &amp; code complete — art and level design still coming</span></div>
+      </div>
+      <div class="systems">
+        <details class="system" open>
+          <summary>Details coming soon</summary>
+          <div class="system-body">This one's mid-build in the write-up — send over the genre, the 2-3 systems you want to highlight, and a repo link, and this card gets filled in exactly like the others above.</div>
+        </details>
+      </div>
+    </div>
+
+  </section>
+
+  <section id="skills">
+    <div class="section-head">
+      <span class="idx">02</span>
+      <h2 class="section-title">Skills</h2>
+    </div>
+
+    <div class="settings-group">
+      <h3>Core</h3>
+      <div class="settings-list">
+        <div class="settings-row"><span class="label">Language</span><span class="value">C#</span></div>
+        <div class="settings-row"><span class="label">Engine</span><span class="value">Unity (2022 LTS – Unity 6)</span></div>
+        <div class="settings-row"><span class="label">Version Control</span><span class="value">Git / GitHub</span></div>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <h3>Systems &amp; Tools</h3>
+      <div class="settings-list">
+        <div class="settings-row"><span class="label">Player Controllers</span><span class="value">Physics-based &amp; kinematic, 2D and 3D</span></div>
+        <div class="settings-row"><span class="label">Editor Tooling</span><span class="value">Custom inspectors, grid-based placement tools</span></div>
+        <div class="settings-row"><span class="label">Architecture</span><span class="value">Interface-driven modular systems, event-based effect systems, finite state machines</span></div>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <h3>Currently Learning</h3>
+      <div class="settings-list">
+        <div class="settings-row"><span class="label">—</span><span class="value">Add what you're studying next — Netcode, DOTS/ECS, shaders, etc.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="contact">
+    <div class="section-head">
+      <span class="idx">03</span>
+      <h2 class="section-title">Contact</h2>
+    </div>
+    <p class="tagline">Open to Unity developer roles. The fastest way to reach me is below.</p>
+    <div class="toolbar-buttons">
+      <a class="btn primary" href="mailto:youremail@example.com">Email ↗</a>
+      <a class="btn" href="https://github.com/TomerBenSimhon" target="_blank" rel="noopener">GitHub ↗</a>
+      <a class="btn" href="https://www.linkedin.com/in/yourprofile" target="_blank" rel="noopener">LinkedIn ↗</a>
+      <a class="btn" href="https://yourname.itch.io" target="_blank" rel="noopener">itch.io ↗</a>
+    </div>
+  </section>
+
+  <footer>
+    <p class="foot-note">// Built with GitHub Pages</p>
+  </footer>
+
+</main>
+
+</body>
+</html>
