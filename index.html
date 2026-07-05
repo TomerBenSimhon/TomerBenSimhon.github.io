@@ -181,6 +181,22 @@
     background:var(--bg-void); padding:5px 10px; border-radius:2px;
     border:1px solid var(--line-soft);
   }
+  .media-slot video{
+    width:100%; height:100%; object-fit:cover; display:block;
+  }
+
+  .system-clip{
+    margin-top:12px;
+    border:1px solid var(--line-soft); border-radius:var(--radius);
+    overflow:hidden; background:#1f1f20;
+  }
+  .system-clip video{
+    width:100%; display:block; max-height:220px; object-fit:cover;
+  }
+  .system-clip .caption{
+    font-family:var(--mono); font-size:11px; color:var(--text-dim);
+    padding:6px 10px; border-top:1px solid var(--line);
+  }
 
   .fields{padding:14px 16px; border-bottom:1px solid var(--line);}
   .field-row{
@@ -302,7 +318,11 @@
         <span class="title"><span class="icon">▣</span>BlueSwordNinja.cs</span>
         <span class="chip">2D Action Platformer</span>
       </div>
-      <div class="media-slot"><span>gameplay clip — coming soon</span></div>
+      <div class="media-slot">
+        <video autoplay muted loop playsinline preload="metadata">
+          <source src="media/blue-sword-ninja/sword-platform.mp4" type="video/mp4">
+        </video>
+      </div>
       <div class="fields">
         <div class="field-row"><span class="label">Genre</span><span class="value">2D Action Platformer</span></div>
         <div class="field-row"><span class="label">Engine</span><span class="value">Unity 2022.3.55f1</span></div>
@@ -311,15 +331,39 @@
       <div class="systems">
         <details class="system" open>
           <summary>Player Controller</summary>
-          <div class="system-body">Fluid, responsive movement with variable jump height, adaptive gravity (falls are pulled down harder than rises for snappier arcs), a jump buffer window so inputs pressed just before landing still register, and coyote time so jumps still fire for a few frames after leaving a ledge.</div>
+          <div class="system-body">
+            Fluid, responsive movement with variable jump height, adaptive gravity (falls are pulled down harder than rises for snappier arcs), a jump buffer window so inputs pressed just before landing still register, and coyote time so jumps still fire for a few frames after leaving a ledge.
+            <div class="system-clip">
+              <video autoplay muted loop playsinline preload="metadata">
+                <source src="media/blue-sword-ninja/jumping.mp4" type="video/mp4">
+              </video>
+              <div class="caption">jump buffer + coyote time in action</div>
+            </div>
+          </div>
         </details>
         <details class="system">
           <summary>The Sword — Platforming &amp; Combat Tool</summary>
-          <div class="system-body">A single tool doing double duty. Thrown at wooden walls it sticks and becomes a temporary platform, and can be recalled back to the player at any time. As a weapon it powers a dash attack, and the same throw can stun enemies on hit — one input, reused across traversal and combat.</div>
+          <div class="system-body">
+            A single tool doing double duty. Thrown at wooden walls it sticks and becomes a temporary platform, and can be recalled back to the player at any time. As a weapon it powers a dash attack, and the same throw can stun enemies on hit — one input, reused across traversal and combat.
+            <div class="system-clip">
+              <video autoplay muted loop playsinline preload="metadata">
+                <source src="media/blue-sword-ninja/combat.mp4" type="video/mp4">
+              </video>
+              <div class="caption">dash attack + throw-stun</div>
+            </div>
+          </div>
         </details>
         <details class="system">
           <summary>Blob Enemy AI (State Machine)</summary>
-          <div class="system-body">A finite state machine driving Patrol, Search, and Attack behavior, so the enemy reacts differently depending on whether it has spotted the player, lost track of them, or is actively engaging.</div>
+          <div class="system-body">
+            A finite state machine driving Patrol, Search, and Attack behavior, so the enemy reacts differently depending on whether it has spotted the player, lost track of them, or is actively engaging.
+            <div class="system-clip">
+              <video autoplay muted loop playsinline preload="metadata">
+                <source src="media/blue-sword-ninja/blob-intro.mp4" type="video/mp4">
+              </video>
+              <div class="caption">patrol → search → attack</div>
+            </div>
+          </div>
         </details>
       </div>
       <div class="panel-foot">
