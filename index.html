@@ -167,14 +167,13 @@
   .chip.green{color:var(--accent-green); border-color:var(--accent-green);}
 
   /* Card body splits into a left "media + specs" column and a right
-     "systems" column now that there's enough width for it. The left
-     column narrows a little when more than one foldout is open, giving
-     the systems column (and any side-by-side clips in it) more room. */
+     "systems" column now that there's enough width for it. Kept a fixed
+     50/50 split regardless of foldout state — narrowing it used to also
+     resize the header video, which made it look darker/lighter purely
+     from being displayed at a different size. */
   .panel-body{
     display:grid; grid-template-columns:1fr 1fr;
-    transition:grid-template-columns 0.3s ease;
   }
-  .panel-body.shrink-media{grid-template-columns:0.6fr 1.4fr;}
   .panel-media{
     border-right:1px solid var(--line);
     display:flex; flex-direction:column;
@@ -317,7 +316,7 @@
   }
 
   @media (max-width:760px){
-    .panel-body, .panel-body.shrink-media{grid-template-columns:1fr;}
+    .panel-body{grid-template-columns:1fr;}
     .panel-media{border-right:none; border-bottom:1px solid var(--line);}
   }
 
@@ -437,13 +436,23 @@
           <summary>Blob Enemy AI (State Machine)</summary>
           <div class="system-body">
             A finite state machine driving Patrol, Search, and Attack behavior, so the enemy reacts differently depending on whether it has spotted the player, lost track of them, or is actively engaging.
-            <div class="system-clip">
-              <div class="clip-media">
-                <video autoplay muted loop playsinline preload="metadata">
-                  <source src="media/blue-sword-ninja/blob-intro.mp4" type="video/mp4">
-                </video>
+            <div class="system-clip-row">
+              <div class="system-clip">
+                <div class="clip-media">
+                  <video autoplay muted loop playsinline preload="metadata">
+                    <source src="media/blue-sword-ninja/blob-gameplay.mp4" type="video/mp4">
+                  </video>
+                </div>
+                <div class="caption">patrol → search → attack</div>
               </div>
-              <div class="caption">patrol → search → attack</div>
+              <div class="system-clip">
+                <div class="clip-media">
+                  <video autoplay muted loop playsinline preload="metadata">
+                    <source src="media/blue-sword-ninja/blob-inspector.mp4" type="video/mp4">
+                  </video>
+                </div>
+                <div class="caption">state machine in the inspector</div>
+              </div>
             </div>
           </div>
         </details>
@@ -595,36 +604,102 @@
 </main>
 
 <script>
-  // Each project card's left "media + specs" column narrows a little
-  // once more than one foldout is open, giving the systems column (and
-  // any side-by-side clips inside it) more breathing room.
+  // Animated open/close for the system foldouts, based on the
+  // details/summary height-animation pattern from web.dev. Opening one
+  // foldout also shrinks any other open foldout in the same project, so
+  // only one system is expanded at a time — everything animates instead
+  // of snapping instantly.
   (function(){
-    document.querySelectorAll('.panel').forEach(function(panel){
-      var body = panel.querySelector('.panel-body');
-      var detailsEls = panel.querySelectorAll('details.system');
-      if (!body || detailsEls.length === 0) return;
+    var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var DURATION = 160; // ms — kept short so it reads as "fast"
+    var registry = new Map();
 
-      var revertTimer = null;
+    function Accordion(el){
+      this.el = el;
+      this.summary = el.querySelector('summary');
+      this.body = el.querySelector('.system-body');
+      this.animation = null;
+      this.isClosing = false;
+      this.isExpanding = false;
+      var self = this;
+      this.summary.addEventListener('click', function(e){ self.onClick(e); });
+    }
 
-      function update(){
-        var openCount = 0;
-        detailsEls.forEach(function(d){ if (d.open) openCount++; });
+    Accordion.prototype.onClick = function(e){
+      e.preventDefault();
 
-        clearTimeout(revertTimer);
-
-        if (openCount > 0){
-          body.classList.add('shrink-media');
-        } else {
-          revertTimer = setTimeout(function(){
-            body.classList.remove('shrink-media');
-          }, 2000);
-        }
+      if (reduceMotion){
+        var willOpen = !this.el.open;
+        this.el.open = willOpen;
+        if (willOpen) closeSiblings(this.el);
+        return;
       }
 
-      detailsEls.forEach(function(d){
-        d.addEventListener('toggle', update);
+      this.el.style.overflow = 'hidden';
+      if (this.isClosing || !this.el.open){
+        this.open();
+      } else if (this.isExpanding || this.el.open){
+        this.shrink();
+      }
+    };
+
+    Accordion.prototype.shrink = function(){
+      this.isClosing = true;
+      var startHeight = this.el.offsetHeight + 'px';
+      var endHeight = this.summary.offsetHeight + 'px';
+      if (this.animation) this.animation.cancel();
+      var self = this;
+      this.animation = this.el.animate(
+        { height: [startHeight, endHeight] },
+        { duration: DURATION, easing: 'ease-out' }
+      );
+      this.animation.onfinish = function(){ self.onAnimationFinish(false); };
+      this.animation.oncancel = function(){ self.isClosing = false; };
+    };
+
+    Accordion.prototype.open = function(){
+      this.el.style.height = this.el.offsetHeight + 'px';
+      this.el.open = true;
+      closeSiblings(this.el);
+      var self = this;
+      window.requestAnimationFrame(function(){ self.expand(); });
+    };
+
+    Accordion.prototype.expand = function(){
+      this.isExpanding = true;
+      var startHeight = this.el.offsetHeight + 'px';
+      var endHeight = (this.summary.offsetHeight + this.body.offsetHeight) + 'px';
+      if (this.animation) this.animation.cancel();
+      var self = this;
+      this.animation = this.el.animate(
+        { height: [startHeight, endHeight] },
+        { duration: DURATION, easing: 'ease-out' }
+      );
+      this.animation.onfinish = function(){ self.onAnimationFinish(true); };
+      this.animation.oncancel = function(){ self.isExpanding = false; };
+    };
+
+    Accordion.prototype.onAnimationFinish = function(open){
+      this.el.open = open;
+      this.animation = null;
+      this.isClosing = false;
+      this.isExpanding = false;
+      this.el.style.height = '';
+      this.el.style.overflow = '';
+    };
+
+    function closeSiblings(el){
+      var systems = el.closest('.systems');
+      if (!systems) return;
+      systems.querySelectorAll('details.system').forEach(function(other){
+        if (other === el) return;
+        var acc = registry.get(other);
+        if (acc && (other.open || acc.isExpanding)) acc.shrink();
       });
-      update();
+    }
+
+    document.querySelectorAll('details.system').forEach(function(el){
+      registry.set(el, new Accordion(el));
     });
   })();
 
