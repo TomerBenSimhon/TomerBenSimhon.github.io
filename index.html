@@ -45,7 +45,7 @@
     outline-offset:2px;
   }
 
-  .wrap{max-width:900px; margin:0 auto; padding:0 24px;}
+  .wrap{max-width:1360px; margin:0 auto; padding:0 24px;}
 
   /* ---------- Top toolbar / nav ---------- */
   header.toolbar{
@@ -54,7 +54,7 @@
     border-bottom:1px solid var(--line);
   }
   .toolbar-inner{
-    max-width:900px; margin:0 auto; padding:0 24px;
+    max-width:1360px; margin:0 auto; padding:0 24px;
     display:flex; align-items:center; justify-content:space-between;
     height:52px;
   }
@@ -136,11 +136,14 @@
   }
 
   /* ---------- Inspector panel (project card) ---------- */
+  .project-grid{
+    display:grid; grid-template-columns:1fr; gap:24px;
+    align-items:start;
+  }
   .panel{
     background:var(--bg-panel);
     border:1px solid var(--line);
     border-radius:var(--radius);
-    margin-bottom:28px;
     overflow:hidden;
   }
   .panel-head{
@@ -163,6 +166,21 @@
   .chip.amber{color:var(--accent-amber); border-color:var(--accent-amber);}
   .chip.green{color:var(--accent-green); border-color:var(--accent-green);}
 
+  /* Card body splits into a left "media + specs" column and a right
+     "systems" column now that there's enough width for it. The left
+     column narrows a little when more than one foldout is open, giving
+     the systems column (and any side-by-side clips in it) more room. */
+  .panel-body{
+    display:grid; grid-template-columns:1fr 1fr;
+    transition:grid-template-columns 0.3s ease;
+  }
+  .panel-body.shrink-media{grid-template-columns:0.6fr 1.4fr;}
+  .panel-media{
+    border-right:1px solid var(--line);
+    display:flex; flex-direction:column;
+  }
+  .panel-media .fields{border-bottom:none; flex:1;}
+
   .media-slot{
     background-image:
       linear-gradient(45deg, #262628 25%, transparent 25%),
@@ -172,9 +190,12 @@
     background-size:16px 16px;
     background-position:0 0, 0 8px, 8px -8px, -8px 0px;
     background-color:#1f1f20;
-    height:180px;
+    aspect-ratio:16/9;
+    position:relative;
     display:flex; align-items:center; justify-content:center;
     border-bottom:1px solid var(--line);
+    overflow:hidden;
+    box-shadow:inset 0 0 0 4px var(--bg-panel);
   }
   .media-slot span{
     font-family:var(--mono); font-size:11.5px; color:var(--text-dim);
@@ -182,20 +203,44 @@
     border:1px solid var(--line-soft);
   }
   .media-slot video{
+    position:absolute; inset:0;
     width:100%; height:100%; object-fit:cover; display:block;
+    background:#000; border:none; outline:none;
+    transform:translateZ(0);
+    will-change:transform;
+    backface-visibility:hidden;
   }
 
   .system-clip{
     margin-top:12px;
     border:1px solid var(--line-soft); border-radius:var(--radius);
     overflow:hidden; background:#1f1f20;
+    position:relative;
+  }
+  .system-clip .clip-media{
+    position:relative; aspect-ratio:16/9; overflow:hidden;
+    box-shadow:inset 0 0 0 4px var(--bg-panel);
   }
   .system-clip video{
-    width:100%; display:block; max-height:220px; object-fit:cover;
+    position:absolute; inset:0;
+    width:100%; height:100%; object-fit:cover; display:block;
+    background:#000; border:none; outline:none;
+    transform:translateZ(0);
+    will-change:transform;
+    backface-visibility:hidden;
   }
   .system-clip .caption{
     font-family:var(--mono); font-size:11px; color:var(--text-dim);
     padding:6px 10px; border-top:1px solid var(--line);
+  }
+
+  /* Multiple clips for one system sit side by side so both are visible
+     without scrolling, instead of stacking tall. */
+  .system-clip-row{
+    display:flex; gap:12px; margin-top:12px;
+  }
+  .system-clip-row .system-clip{
+    margin-top:0; flex:1 1 0; min-width:0;
   }
 
   .fields{padding:14px 16px; border-bottom:1px solid var(--line);}
@@ -217,6 +262,13 @@
     padding:11px 4px;
     font-family:var(--mono); font-size:13.5px; color:var(--text-hi);
     display:flex; align-items:center; gap:8px;
+    border-radius:2px;
+    transition:background-color 0.15s ease, color 0.15s ease, padding-left 0.15s ease;
+  }
+  details.system summary:hover{
+    background-color:var(--bg-field);
+    color:var(--accent-blue);
+    padding-left:8px;
   }
   details.system summary::-webkit-details-marker{display:none;}
   details.system summary::before{
@@ -262,6 +314,15 @@
   footer p.tagline{color:var(--text-lo); margin-bottom:24px; max-width:50ch;}
   .foot-note{
     margin-top:36px; font-family:var(--mono); font-size:11.5px; color:var(--text-dim);
+  }
+
+  @media (max-width:760px){
+    .panel-body, .panel-body.shrink-media{grid-template-columns:1fr;}
+    .panel-media{border-right:none; border-bottom:1px solid var(--line);}
+  }
+
+  @media (max-width:480px){
+    .system-clip-row{flex-direction:column;}
   }
 
   @media (max-width:640px){
@@ -312,31 +373,38 @@
       <h2 class="section-title">Projects</h2>
     </div>
 
+    <div class="project-grid">
+
     <!-- PROJECT 1 -->
     <div class="panel">
       <div class="panel-head">
         <span class="title"><span class="icon">▣</span>BlueSwordNinja.cs</span>
         <span class="chip">2D Action Platformer</span>
       </div>
-      <div class="media-slot">
-        <video autoplay muted loop playsinline preload="metadata">
-          <source src="media/blue-sword-ninja/sword-platform.mp4" type="video/mp4">
-        </video>
-      </div>
-      <div class="fields">
-        <div class="field-row"><span class="label">Genre</span><span class="value">2D Action Platformer</span></div>
-        <div class="field-row"><span class="label">Engine</span><span class="value">Unity 2022.3.55f1</span></div>
-        <div class="field-row"><span class="label">Role</span><span class="value">Solo developer — all code &amp; mechanics</span></div>
-      </div>
-      <div class="systems">
-        <details class="system" open>
+      <div class="panel-body">
+        <div class="panel-media">
+          <div class="media-slot">
+            <video autoplay muted loop playsinline preload="metadata">
+              <source src="media/blue-sword-ninja/headliner.mp4" type="video/mp4">
+            </video>
+          </div>
+          <div class="fields">
+            <div class="field-row"><span class="label">Genre</span><span class="value">2D Action Platformer</span></div>
+            <div class="field-row"><span class="label">Engine</span><span class="value">Unity 2022.3.55f1</span></div>
+            <div class="field-row"><span class="label">Role</span><span class="value">Solo developer — all code &amp; mechanics</span></div>
+          </div>
+        </div>
+        <div class="systems">
+        <details class="system">
           <summary>Player Controller</summary>
           <div class="system-body">
             Fluid, responsive movement with variable jump height, adaptive gravity (falls are pulled down harder than rises for snappier arcs), a jump buffer window so inputs pressed just before landing still register, and coyote time so jumps still fire for a few frames after leaving a ledge.
             <div class="system-clip">
-              <video autoplay muted loop playsinline preload="metadata">
-                <source src="media/blue-sword-ninja/jumping.mp4" type="video/mp4">
-              </video>
+              <div class="clip-media">
+                <video autoplay muted loop playsinline preload="metadata">
+                  <source src="media/blue-sword-ninja/jumping.mp4" type="video/mp4">
+                </video>
+              </div>
               <div class="caption">jump buffer + coyote time in action</div>
             </div>
           </div>
@@ -345,11 +413,23 @@
           <summary>The Sword — Platforming &amp; Combat Tool</summary>
           <div class="system-body">
             A single tool doing double duty. Thrown at wooden walls it sticks and becomes a temporary platform, and can be recalled back to the player at any time. As a weapon it powers a dash attack, and the same throw can stun enemies on hit — one input, reused across traversal and combat.
-            <div class="system-clip">
-              <video autoplay muted loop playsinline preload="metadata">
-                <source src="media/blue-sword-ninja/combat.mp4" type="video/mp4">
-              </video>
-              <div class="caption">dash attack + throw-stun</div>
+            <div class="system-clip-row">
+              <div class="system-clip">
+                <div class="clip-media">
+                  <video autoplay muted loop playsinline preload="metadata">
+                    <source src="media/blue-sword-ninja/sword-platform.mp4" type="video/mp4">
+                  </video>
+                </div>
+                <div class="caption">throw → stick → recall</div>
+              </div>
+              <div class="system-clip">
+                <div class="clip-media">
+                  <video autoplay muted loop playsinline preload="metadata">
+                    <source src="media/blue-sword-ninja/combat.mp4" type="video/mp4">
+                  </video>
+                </div>
+                <div class="caption">dash attack + throw-stun</div>
+              </div>
             </div>
           </div>
         </details>
@@ -358,13 +438,16 @@
           <div class="system-body">
             A finite state machine driving Patrol, Search, and Attack behavior, so the enemy reacts differently depending on whether it has spotted the player, lost track of them, or is actively engaging.
             <div class="system-clip">
-              <video autoplay muted loop playsinline preload="metadata">
-                <source src="media/blue-sword-ninja/blob-intro.mp4" type="video/mp4">
-              </video>
+              <div class="clip-media">
+                <video autoplay muted loop playsinline preload="metadata">
+                  <source src="media/blue-sword-ninja/blob-intro.mp4" type="video/mp4">
+                </video>
+              </div>
               <div class="caption">patrol → search → attack</div>
             </div>
           </div>
         </details>
+        </div>
       </div>
       <div class="panel-foot">
         <a class="btn" href="https://github.com/TomerBenSimhon/2D-Platformer-IAC" target="_blank" rel="noopener">View Source ▸</a>
@@ -377,14 +460,17 @@
         <span class="title"><span class="icon">▣</span>SkyRoadsRemake.cs</span>
         <span class="chip">3D Platformer</span>
       </div>
-      <div class="media-slot"><span>gameplay clip — coming soon</span></div>
-      <div class="fields">
-        <div class="field-row"><span class="label">Genre</span><span class="value">3D Platformer</span></div>
-        <div class="field-row"><span class="label">Engine</span><span class="value">Unity 6000.3.2f1</span></div>
-        <div class="field-row"><span class="label">Role</span><span class="value">Team project — All game mechanics and tools</span></div>
-      </div>
-      <div class="systems">
-        <details class="system" open>
+      <div class="panel-body">
+        <div class="panel-media">
+          <div class="media-slot"><span>gameplay clip — coming soon</span></div>
+          <div class="fields">
+            <div class="field-row"><span class="label">Genre</span><span class="value">3D Platformer</span></div>
+            <div class="field-row"><span class="label">Engine</span><span class="value">Unity 6000.3.2f1</span></div>
+            <div class="field-row"><span class="label">Role</span><span class="value">Team project — All game mechanics and tools</span></div>
+          </div>
+        </div>
+        <div class="systems">
+        <details class="system">
           <summary>Player Controller</summary>
           <div class="system-body">The same design goals as Blue Sword Ninja's controller — smooth, fluid movement, variable jump height, adaptive gravity — reworked for 3D space and traction on moving/tilting platforms.</div>
         </details>
@@ -396,6 +482,7 @@
           <summary>Custom Editor Tools</summary>
           <div class="system-body">A grid-based Prefab Painter — effectively a 3D equivalent of Unity's 2D tilemap, built because the level's platforms follow a fixed grid. Paired with an Effect System and a Global Event script: a reusable component that any object can attach camera shake, sound, and particle effects to, triggered off shared events.</div>
         </details>
+        </div>
       </div>
       <div class="panel-foot">
         <a class="btn" href="https://github.com/TomerBenSimhon/Skyroads---Remake" target="_blank" rel="noopener">View Source ▸</a>
@@ -408,17 +495,21 @@
         <span class="title"><span class="icon">▣</span>ProjectWallE.cs</span>
         <span class="chip">3D Action Tower Defense</span>
       </div>
-      <div class="media-slot"><span>gameplay clip — coming soon</span></div>
-      <div class="fields">
-        <div class="field-row"><span class="label">Genre</span><span class="value">3D Action Tower Defense</span></div>
-        <div class="field-row"><span class="label">Engine</span><span class="value">Unity 6000.4.6f1</span></div>
-        <div class="field-row"><span class="label">Role</span><span class="value">Team project — player controller &amp; vehicle physics</span></div>
-      </div>
-      <div class="systems">
-        <details class="system" open>
+      <div class="panel-body">
+        <div class="panel-media">
+          <div class="media-slot"><span>gameplay clip — coming soon</span></div>
+          <div class="fields">
+            <div class="field-row"><span class="label">Genre</span><span class="value">3D Action Tower Defense</span></div>
+            <div class="field-row"><span class="label">Engine</span><span class="value">Unity 6000.4.6f1</span></div>
+            <div class="field-row"><span class="label">Role</span><span class="value">Team project — player controller &amp; vehicle physics</span></div>
+          </div>
+        </div>
+        <div class="systems">
+        <details class="system">
           <summary>Dual Player Controller — Robot / Car</summary>
           <div class="system-body">A robot that moves, jumps, and shoots, and can transform on the fly into a car for faster traversal. The car mode runs on wheel physics with real tire-traction calculations rather than a simple arcade approximation, so handling responds to speed and turning the way an actual vehicle would.</div>
         </details>
+        </div>
       </div>
       <div class="panel-foot">
         <a class="btn" href="https://github.com/danielnoam/ProjectWallE" target="_blank" rel="noopener">View Source ▸</a>
@@ -431,16 +522,22 @@
         <span class="title"><span class="icon">▣</span>Untitled_Prototype.cs</span>
         <span class="chip amber">In Progress — Systems Complete</span>
       </div>
-      <div class="media-slot"><span>art &amp; level pass in progress</span></div>
-      <div class="fields">
-        <div class="field-row"><span class="label">Status</span><span class="value">Full mechanics &amp; code complete — art and level design still coming</span></div>
-      </div>
-      <div class="systems">
-        <details class="system" open>
+      <div class="panel-body">
+        <div class="panel-media">
+          <div class="media-slot"><span>art &amp; level pass in progress</span></div>
+          <div class="fields">
+            <div class="field-row"><span class="label">Status</span><span class="value">Full mechanics &amp; code complete — art and level design still coming</span></div>
+          </div>
+        </div>
+        <div class="systems">
+        <details class="system">
           <summary>Details coming soon</summary>
           <div class="system-body">This one's mid-build in the write-up — send over the genre, the 2-3 systems you want to highlight, and a repo link, and this card gets filled in exactly like the others above.</div>
         </details>
+        </div>
       </div>
+    </div>
+
     </div>
 
   </section>
@@ -498,6 +595,39 @@
 </main>
 
 <script>
+  // Each project card's left "media + specs" column narrows a little
+  // once more than one foldout is open, giving the systems column (and
+  // any side-by-side clips inside it) more breathing room.
+  (function(){
+    document.querySelectorAll('.panel').forEach(function(panel){
+      var body = panel.querySelector('.panel-body');
+      var detailsEls = panel.querySelectorAll('details.system');
+      if (!body || detailsEls.length === 0) return;
+
+      var revertTimer = null;
+
+      function update(){
+        var openCount = 0;
+        detailsEls.forEach(function(d){ if (d.open) openCount++; });
+
+        clearTimeout(revertTimer);
+
+        if (openCount > 0){
+          body.classList.add('shrink-media');
+        } else {
+          revertTimer = setTimeout(function(){
+            body.classList.remove('shrink-media');
+          }, 2000);
+        }
+      }
+
+      detailsEls.forEach(function(d){
+        d.addEventListener('toggle', update);
+      });
+      update();
+    });
+  })();
+
   // Keep the toolbar tab highlighted for whichever section is on screen,
   // and update it instantly on click too (no waiting for scroll to catch up).
   (function(){
