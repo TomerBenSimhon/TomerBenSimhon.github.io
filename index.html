@@ -145,6 +145,21 @@
     border:1px solid var(--line);
     border-radius:var(--radius);
     overflow:hidden;
+    position:relative;
+    transform-origin:top left;
+  }
+  /* Breaks out of the normal contained width to nearly fill the
+     viewport (with a visible gutter on each side, not edge-to-edge)
+     while staying a completely normal in-flow element — it still pushes
+     whatever comes after it down by its real height, same as always. */
+  .panel.expanded{
+    width:94vw;
+    max-width:94vw;
+    min-height:calc(100vh - 140px); /* leaves ~70px clearance top & bottom below the sticky nav, matching NAV_CLEARANCE in JS */
+    left:50%;
+    margin-left:-47vw;
+    z-index:5;
+    box-shadow:0 25px 60px rgba(0,0,0,0.45);
   }
   .panel-head{
     background:var(--bg-panel-head);
@@ -185,7 +200,7 @@
     transition:flex-basis 0.3s ease;
   }
   .panel-body.shrink-media .panel-media{flex-basis:30%;}
-  .panel-media .fields{border-bottom:none; flex:1;}
+  .panel-media .fields{border-bottom:none;}
 
   .media-slot{
     background-image:
@@ -296,6 +311,17 @@
     padding:12px 16px;
     display:flex; gap:10px; flex-wrap:wrap;
   }
+
+  /* The card is nearly full-screen-width once expanded, so scale text up
+     and pull the videos in a bit — otherwise the clips read as oversized
+     against body text still sized for the normal, contained card width. */
+  .panel.expanded details.system summary{font-size:15.5px;}
+  .panel.expanded details.system .system-body{font-size:16.5px; line-height:1.65;}
+  .panel.expanded .system-clip .caption{font-size:13px;}
+  .panel.expanded .field-row{font-size:15.5px;}
+  .panel.expanded .field-row .label{font-size:14px;}
+  .panel.expanded .system-body > .system-clip{width:100%; max-width:900px; margin-left:0; margin-right:auto;}
+  .panel.expanded .system-clip-row{width:100%; max-width:1485px; margin-left:0; margin-right:auto;}
 
   @media (prefers-reduced-motion: reduce){
     details.system summary::before{transition:none;}
@@ -414,6 +440,9 @@
             <div class="field-row"><span class="label">Engine</span><span class="value">Unity 2022.3.55f1</span></div>
             <div class="field-row"><span class="label">Role</span><span class="value">Solo developer — all code &amp; mechanics</span></div>
           </div>
+          <div class="panel-foot">
+            <a class="btn" href="https://github.com/TomerBenSimhon/2D-Platformer-IAC" target="_blank" rel="noopener">View Source ▸</a>
+          </div>
         </div>
         <div class="systems">
         <details class="system">
@@ -480,9 +509,6 @@
         </details>
         </div>
       </div>
-      <div class="panel-foot">
-        <a class="btn" href="https://github.com/TomerBenSimhon/2D-Platformer-IAC" target="_blank" rel="noopener">View Source ▸</a>
-      </div>
     </div>
 
     <!-- PROJECT 2 -->
@@ -498,6 +524,9 @@
             <div class="field-row"><span class="label">Genre</span><span class="value">3D Platformer</span></div>
             <div class="field-row"><span class="label">Engine</span><span class="value">Unity 6000.3.2f1</span></div>
             <div class="field-row"><span class="label">Role</span><span class="value">Team project — All game mechanics and tools</span></div>
+          </div>
+          <div class="panel-foot">
+            <a class="btn" href="https://github.com/TomerBenSimhon/Skyroads---Remake" target="_blank" rel="noopener">View Source ▸</a>
           </div>
         </div>
         <div class="systems">
@@ -515,9 +544,6 @@
         </details>
         </div>
       </div>
-      <div class="panel-foot">
-        <a class="btn" href="https://github.com/TomerBenSimhon/Skyroads---Remake" target="_blank" rel="noopener">View Source ▸</a>
-      </div>
     </div>
 
     <!-- PROJECT 3 -->
@@ -534,6 +560,9 @@
             <div class="field-row"><span class="label">Engine</span><span class="value">Unity 6000.4.6f1</span></div>
             <div class="field-row"><span class="label">Role</span><span class="value">Team project — player controller &amp; vehicle physics</span></div>
           </div>
+          <div class="panel-foot">
+            <a class="btn" href="https://github.com/danielnoam/ProjectWallE" target="_blank" rel="noopener">View Source ▸</a>
+          </div>
         </div>
         <div class="systems">
         <details class="system">
@@ -541,9 +570,6 @@
           <div class="system-body">A robot that moves, jumps, and shoots, and can transform on the fly into a car for faster traversal. The car mode runs on wheel physics with real tire-traction calculations rather than a simple arcade approximation, so handling responds to speed and turning the way an actual vehicle would.</div>
         </details>
         </div>
-      </div>
-      <div class="panel-foot">
-        <a class="btn" href="https://github.com/danielnoam/ProjectWallE" target="_blank" rel="noopener">View Source ▸</a>
       </div>
     </div>
 
@@ -660,7 +686,7 @@
   // of snapping instantly.
   (function(){
     var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    var DURATION = 160; // ms — kept short so it reads as "fast"
+    var DURATION = 200; // ms — matches FLIP_DURATION below exactly, so opening a foldout and the surrounding card growing finish at the same moment instead of one lagging
     var registry = new Map();
 
     function Accordion(el){
@@ -784,6 +810,7 @@
     document.querySelectorAll('details.system').forEach(function(el){
       registry.set(el, new Accordion(el));
     });
+    window.__accordionRegistry = registry;
 
     // Safety net: if the viewport changes (like a phone rotating between
     // portrait and landscape, which is exactly when our clip-rows switch
@@ -803,22 +830,166 @@
   })();
 
   // The left "media + specs" column narrows once a foldout is open in
-  // that card, and widens back to 50/50 a couple seconds after the last
-  // one closes (so browsing between foldouts doesn't cause it to snap
-  // back and forth).
+  // that card, and the whole card breaks out to nearly the full
+  // viewport width (leaving a visible gutter on each side, not
+  // edge-to-edge) while remaining a totally normal in-flow element —
+  // anything after it still gets pushed down by its real height, same
+  // as always. The first time a card expands, the page smooth-scrolls
+  // so it settles nicely in view. Closing all its foldouts doesn't
+  // shrink it back immediately — it waits a few seconds in case
+  // another foldout is about to be opened — and scrolling a good
+  // distance away from it reverts immediately, no delay.
   //
-  // This watches the `open` attribute directly with a MutationObserver
-  // rather than listening for the `toggle` event — some browsers don't
-  // reliably fire `toggle` when `open` is set via script (which is how
-  // the accordion animation above works), but a MutationObserver picks
-  // up the attribute change regardless of what caused it.
+  // The resize itself is done with a FLIP animation (measure before,
+  // snap to the final CSS state, fake the old position/size with a
+  // transform, then animate that transform down to identity) rather
+  // than transitioning width/margin directly — transform is the one
+  // thing that's animated reliably and consistently across every
+  // browser we tested this on, unlike several more "obvious" CSS
+  // properties earlier in this project.
+  //
+  // Uses a MutationObserver on the `open` attribute rather than the
+  // `toggle` event — some browsers don't reliably fire `toggle` when
+  // `open` is set via script (which is how the accordion above works),
+  // but a MutationObserver picks up the change regardless of cause.
   (function(){
+    var REVERT_DELAY = 3000; // ms after the last foldout closes
+    var SCROLL_AWAY_THRESHOLD = 350; // px — only a sizeable scroll counts
+    var FLIP_DURATION = 200; // ms
+    var NAV_CLEARANCE = 70; // roughly the sticky header's height + a gap
+
+    function flip(panel, applyChanges){
+      var first = panel.getBoundingClientRect();
+      applyChanges();
+      var last = panel.getBoundingClientRect();
+      var scaleX = first.width / last.width;
+      var scaleY = first.height / last.height;
+      var dx = first.left - last.left;
+      var dy = first.top - last.top;
+
+      panel.style.transition = 'none';
+      panel.style.transform = 'translate(' + dx + 'px,' + dy + 'px) scale(' + scaleX + ',' + scaleY + ')';
+      void panel.offsetWidth;
+      panel.style.transition = 'transform ' + FLIP_DURATION + 'ms ease-out';
+      panel.style.transform = 'translate(0,0) scale(1,1)';
+
+      // The true final layout position, measured before the transform
+      // trick above was applied — so callers can rely on it instead of
+      // re-measuring later, which would catch the panel still mid-animation
+      // (getBoundingClientRect includes the in-progress transform) and
+      // give a slightly-wrong answer, like a scroll target that lands a
+      // few pixels short and tucks the top edge under the sticky nav.
+      return last;
+    }
+
+    // Takes the panel's true final rect (see flip() above) and returns
+    // the scroll target it settles on, so the caller can treat that as
+    // the new "home" position for scroll-away detection.
+    function scrollToShow(rect){
+      var viewportH = window.innerHeight;
+      var target;
+      if (rect.height >= viewportH - NAV_CLEARANCE){
+        target = window.scrollY + rect.top - NAV_CLEARANCE;
+      } else {
+        target = window.scrollY + rect.top - (viewportH - rect.height) / 2;
+      }
+      target = Math.max(0, target);
+      window.scrollTo({ top: target, behavior: 'smooth' });
+      return target;
+    }
+
+    function animateSiblingShift(panel, firstRects, siblings){
+      siblings.forEach(function(el, i){
+        var first = firstRects[i];
+        var last = el.getBoundingClientRect();
+        var dy = first.top - last.top;
+        if (Math.abs(dy) < 1) return;
+
+        el.style.transition = 'none';
+        el.style.transform = 'translate(0,' + dy + 'px)';
+        void el.offsetWidth;
+        el.style.transition = 'transform ' + FLIP_DURATION + 'ms ease-out';
+        el.style.transform = 'translate(0,0)';
+
+        setTimeout(function(){
+          el.style.transition = '';
+          el.style.transform = '';
+        }, FLIP_DURATION + 20);
+      });
+    }
+
+    // Wraps flip() so that when a card grows/shrinks and pushes the
+    // other cards down/up, those other cards ease into their new spot
+    // too instead of snapping there instantly — the layout change itself
+    // is still instant (that's just how document flow works), but we
+    // fake their old position with a transform and animate it away, the
+    // same trick flip() uses for the card that's actually resizing.
+    function flipWithSiblings(panel, applyChanges){
+      var container = panel.parentNode;
+      var siblings = Array.prototype.filter.call(container.children, function(el){
+        return el !== panel && el.classList && el.classList.contains('panel');
+      });
+      var firstRects = siblings.map(function(el){ return el.getBoundingClientRect(); });
+
+      var finalRect = flip(panel, applyChanges);
+
+      animateSiblingShift(panel, firstRects, siblings);
+
+      return finalRect;
+    }
+
     document.querySelectorAll('.panel').forEach(function(panel){
       var body = panel.querySelector('.panel-body');
       var detailsEls = panel.querySelectorAll('details.system');
       if (!body || detailsEls.length === 0) return;
 
       var revertTimer = null;
+      var isExpanded = false;
+      var scrollRef = null;
+      var suppressScrollCheckUntil = 0;
+
+      function expand(){
+        if (isExpanded) return;
+        isExpanded = true;
+
+        var finalRect = flipWithSiblings(panel, function(){
+          panel.classList.add('expanded');
+          body.classList.add('shrink-media');
+        });
+
+        scrollRef = scrollToShow(finalRect);
+        // Ignore scroll-away checks briefly — this programmatic
+        // smooth-scroll would otherwise look like the visitor
+        // scrolling away from the card they just opened.
+        suppressScrollCheckUntil = Date.now() + 700;
+      }
+
+      function closeAllFoldouts(){
+        var reg = window.__accordionRegistry;
+        detailsEls.forEach(function(d){
+          if (!d.open) return;
+          var acc = reg && reg.get(d);
+          if (acc) acc.shrink(); else d.open = false;
+        });
+      }
+
+      function revert(){
+        if (!isExpanded) return;
+        isExpanded = false;
+        scrollRef = null;
+
+        closeAllFoldouts();
+
+        flipWithSiblings(panel, function(){
+          panel.classList.remove('expanded');
+          body.classList.remove('shrink-media');
+        });
+
+        setTimeout(function(){
+          panel.style.transition = '';
+          panel.style.transform = '';
+        }, FLIP_DURATION + 20);
+      }
 
       function update(){
         var openCount = 0;
@@ -827,13 +998,20 @@
         clearTimeout(revertTimer);
 
         if (openCount > 0){
-          body.classList.add('shrink-media');
-        } else {
-          revertTimer = setTimeout(function(){
-            body.classList.remove('shrink-media');
-          }, 2000);
+          expand();
+        } else if (isExpanded){
+          revertTimer = setTimeout(revert, REVERT_DELAY);
         }
       }
+
+      panel.__checkScrollAway = function(){
+        if (scrollRef === null) return;
+        if (Date.now() < suppressScrollCheckUntil) return;
+        if (Math.abs(window.scrollY - scrollRef) > SCROLL_AWAY_THRESHOLD){
+          clearTimeout(revertTimer);
+          revert();
+        }
+      };
 
       var observer = new MutationObserver(update);
       detailsEls.forEach(function(d){
@@ -841,7 +1019,21 @@
       });
       update();
     });
+
+    var allPanels = document.querySelectorAll('.panel');
+    var ticking = false;
+    window.addEventListener('scroll', function(){
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(function(){
+        allPanels.forEach(function(panel){
+          if (panel.__checkScrollAway) panel.__checkScrollAway();
+        });
+        ticking = false;
+      });
+    }, { passive:true });
   })();
+
 
   // Keep the toolbar tab highlighted for whichever section is on screen,
   // and update it instantly on click too (no waiting for scroll to catch up).
