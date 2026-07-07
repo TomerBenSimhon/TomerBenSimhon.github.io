@@ -333,17 +333,17 @@
   }
 
   @media (max-width:480px){
-    .system-clip-row{flex-direction:column;}
-    /* .system-clip-row .system-clip normally uses flex-basis:0 so it
-       shares width evenly in row mode. But flex-basis applies to the
-       *main axis*, and flipping to column makes that axis height, not
-       width — so a basis of 0 with nothing forcing the container's
-       height meant these clips collapsed toward zero height instead of
-       sizing to fit their (aspect-ratio-driven) content. Overriding
-       back to a content-based, non-growing size fixes that. */
-    .system-clip-row .system-clip,
-    .system-clip-row .system-clip.clip-wide,
-    .system-clip-row .system-clip.clip-narrow{flex:none;}
+    /* Switching to plain block stacking here, not flex-direction:column.
+       Safari has documented bugs resolving a flex item's height when it
+       also has overflow:hidden (needed here for the rounded corners) —
+       it can collapse toward zero where Chrome doesn't. Block-level
+       children have no such "automatic minimum size" ambiguity: each
+       clip just sizes from its own aspect-ratio content, full stop. */
+    .system-clip-row{display:block;}
+    .system-clip-row .system-clip{
+      margin-top:12px;
+    }
+    .system-clip-row .system-clip:first-child{margin-top:0;}
   }
 
   @media (max-width:640px){
