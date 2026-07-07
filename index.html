@@ -695,6 +695,12 @@
 
     Accordion.prototype.shrink = function(){
       this.isClosing = true;
+      // Always ensure clipping here, not just in onClick — closeSiblings
+      // calls shrink() directly on other open accordions, which used to
+      // skip this and let their content stay fully visible (uncropped)
+      // for the whole animation instead of gradually clipping as the
+      // box shrinks, only vanishing abruptly at the very end.
+      this.el.style.overflow = 'hidden';
       var startHeight = this.el.offsetHeight + 'px';
       var endHeight = this.summary.offsetHeight + 'px';
       if (this.animation) this.animation.cancel();
