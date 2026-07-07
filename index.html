@@ -451,7 +451,7 @@
             Fluid, responsive movement with variable jump height, adaptive gravity (falls are pulled down harder than rises for snappier arcs), a jump buffer window so inputs pressed just before landing still register, and coyote time so jumps still fire for a few frames after leaving a ledge.
             <div class="system-clip">
               <div class="clip-media">
-                <video autoplay muted loop playsinline preload="auto">
+                <video muted loop playsinline preload="auto">
                   <source src="media/blue-sword-ninja/jumping.mp4" type="video/mp4">
                 </video>
               </div>
@@ -466,7 +466,7 @@
             <div class="system-clip-row">
               <div class="system-clip">
                 <div class="clip-media">
-                  <video autoplay muted loop playsinline preload="auto">
+                  <video muted loop playsinline preload="auto">
                     <source src="media/blue-sword-ninja/sword-platform.mp4" type="video/mp4">
                   </video>
                 </div>
@@ -474,7 +474,7 @@
               </div>
               <div class="system-clip">
                 <div class="clip-media">
-                  <video autoplay muted loop playsinline preload="auto">
+                  <video muted loop playsinline preload="auto">
                     <source src="media/blue-sword-ninja/combat.mp4" type="video/mp4">
                   </video>
                 </div>
@@ -490,7 +490,7 @@
             <div class="system-clip-row">
               <div class="system-clip clip-wide">
                 <div class="clip-media">
-                  <video autoplay muted loop playsinline preload="auto">
+                  <video muted loop playsinline preload="auto">
                     <source src="media/blue-sword-ninja/blob-gameplay.mp4" type="video/mp4">
                   </video>
                 </div>
@@ -498,7 +498,7 @@
               </div>
               <div class="system-clip clip-narrow">
                 <div class="clip-media">
-                  <video autoplay muted loop playsinline preload="auto">
+                  <video muted loop playsinline preload="auto">
                     <source src="media/blue-sword-ninja/blob-inspector.mp4" type="video/mp4">
                   </video>
                 </div>
@@ -652,10 +652,13 @@
 </main>
 
 <script>
-  // Safari is inconsistent about actually starting muted-autoplay videos,
-  // especially ones revealed later (inside a foldout) rather than present
-  // at initial page load. Explicitly nudge every video to play — once on
-  // load, and again any time a foldout opens (revealing new videos).
+  // Header videos (the ones with the `autoplay` attribute, at the top of
+  // each project card) still start immediately, same as always. Foldout
+  // videos deliberately do NOT have that attribute — they only start
+  // playing once their foldout is actually opened, and get paused and
+  // rewound back to the start the moment it closes, so opening it again
+  // later always replays from frame one instead of resuming wherever it
+  // happened to be.
   (function(){
     function playAllVideos(root){
       (root || document).querySelectorAll('video[autoplay]').forEach(function(v){
@@ -668,10 +671,30 @@
     } else {
       playAllVideos();
     }
+
+    function playFoldoutVideos(root){
+      root.querySelectorAll('video').forEach(function(v){
+        v.currentTime = 0;
+        var p = v.play();
+        if (p && p.catch) p.catch(function(){ /* ignore */ });
+      });
+    }
+
+    function resetFoldoutVideos(root){
+      root.querySelectorAll('video').forEach(function(v){
+        v.pause();
+        v.currentTime = 0;
+      });
+    }
+
     document.querySelectorAll('details.system').forEach(function(d){
       var wasOpen = d.open;
       new MutationObserver(function(){
-        if (d.open && !wasOpen) playAllVideos(d);
+        if (d.open && !wasOpen){
+          playFoldoutVideos(d);
+        } else if (!d.open && wasOpen){
+          resetFoldoutVideos(d);
+        }
         wasOpen = d.open;
       }).observe(d, { attributes:true, attributeFilter:['open'] });
     });
@@ -938,6 +961,8 @@
       return finalRect;
     }
 
+    var currentExpandedController = null;
+
     document.querySelectorAll('.panel').forEach(function(panel){
       var body = panel.querySelector('.panel-body');
       var detailsEls = panel.querySelectorAll('details.system');
@@ -948,9 +973,46 @@
       var scrollRef = null;
       var suppressScrollCheckUntil = 0;
 
+      var controller = {
+        instantRevert: function(){
+          clearTimeout(revertTimer);
+          if (!isExpanded) return;
+          isExpanded = false;
+          scrollRef = null;
+          if (currentExpandedController === controller) currentExpandedController = null;
+          // No FLIP, no sibling animation, no foldout-closing animation
+          // here — this only runs as an immediate hand-off right before
+          // a *different* card takes over as the expanded one, so it
+          // needs to be fully resolved instantly rather than mid-animation,
+          // otherwise the new card's "where do I scroll to" measurement
+          // would be based on a layout that's still in the middle of
+          // changing underneath it.
+          detailsEls.forEach(function(d){
+            d.open = false;
+          });
+          panel.style.transition = 'none';
+          panel.style.transform = '';
+          panel.classList.remove('expanded');
+          body.classList.remove('shrink-media');
+          void panel.offsetWidth;
+          panel.style.transition = '';
+        }
+      };
+
       function expand(){
         if (isExpanded) return;
+
+        // Only one card is ever expanded at a time. If a different one
+        // currently is, hand off to it instantly and completely first —
+        // so this card's own "before" measurement below reflects the
+        // true, settled layout rather than a layout that's still
+        // mid-animation from the other card reverting.
+        if (currentExpandedController && currentExpandedController !== controller){
+          currentExpandedController.instantRevert();
+        }
+
         isExpanded = true;
+        currentExpandedController = controller;
 
         var finalRect = flipWithSiblings(panel, function(){
           panel.classList.add('expanded');
@@ -977,6 +1039,7 @@
         if (!isExpanded) return;
         isExpanded = false;
         scrollRef = null;
+        if (currentExpandedController === controller) currentExpandedController = null;
 
         closeAllFoldouts();
 
