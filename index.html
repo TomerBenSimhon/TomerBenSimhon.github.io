@@ -1002,6 +1002,13 @@
       function expand(){
         if (isExpanded) return;
 
+        // Below the same breakpoint where the card layout itself
+        // switches to stacked (mobile), there's no useful way to make a
+        // card "bigger" — the screen is already showing about as much
+        // of it as it can. Foldouts still open normally; the card just
+        // doesn't try to grow/break out/auto-scroll on top of that.
+        if (window.innerWidth <= 760) return;
+
         // Only one card is ever expanded at a time. If a different one
         // currently is, hand off to it instantly and completely first —
         // so this card's own "before" measurement below reflects the
