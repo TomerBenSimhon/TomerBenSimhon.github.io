@@ -29,7 +29,7 @@
   }
 
   *{box-sizing:border-box;}
-  html{scroll-behavior:smooth;}
+  html{-webkit-text-size-adjust:100%; text-size-adjust:100%; scroll-behavior:smooth;}
   body{
     margin:0;
     background:var(--bg-void);
@@ -395,7 +395,7 @@
       <div class="panel-body">
         <div class="panel-media">
           <div class="media-slot">
-            <video autoplay muted loop playsinline preload="metadata">
+            <video autoplay muted loop playsinline preload="auto">
               <source src="media/blue-sword-ninja/headliner.mp4" type="video/mp4">
             </video>
           </div>
@@ -412,7 +412,7 @@
             Fluid, responsive movement with variable jump height, adaptive gravity (falls are pulled down harder than rises for snappier arcs), a jump buffer window so inputs pressed just before landing still register, and coyote time so jumps still fire for a few frames after leaving a ledge.
             <div class="system-clip">
               <div class="clip-media">
-                <video autoplay muted loop playsinline preload="metadata">
+                <video autoplay muted loop playsinline preload="auto">
                   <source src="media/blue-sword-ninja/jumping.mp4" type="video/mp4">
                 </video>
               </div>
@@ -427,7 +427,7 @@
             <div class="system-clip-row">
               <div class="system-clip">
                 <div class="clip-media">
-                  <video autoplay muted loop playsinline preload="metadata">
+                  <video autoplay muted loop playsinline preload="auto">
                     <source src="media/blue-sword-ninja/sword-platform.mp4" type="video/mp4">
                   </video>
                 </div>
@@ -435,7 +435,7 @@
               </div>
               <div class="system-clip">
                 <div class="clip-media">
-                  <video autoplay muted loop playsinline preload="metadata">
+                  <video autoplay muted loop playsinline preload="auto">
                     <source src="media/blue-sword-ninja/combat.mp4" type="video/mp4">
                   </video>
                 </div>
@@ -451,7 +451,7 @@
             <div class="system-clip-row">
               <div class="system-clip clip-wide">
                 <div class="clip-media">
-                  <video autoplay muted loop playsinline preload="metadata">
+                  <video autoplay muted loop playsinline preload="auto">
                     <source src="media/blue-sword-ninja/blob-gameplay.mp4" type="video/mp4">
                   </video>
                 </div>
@@ -459,7 +459,7 @@
               </div>
               <div class="system-clip clip-narrow">
                 <div class="clip-media">
-                  <video autoplay muted loop playsinline preload="metadata">
+                  <video autoplay muted loop playsinline preload="auto">
                     <source src="media/blue-sword-ninja/blob-inspector.mp4" type="video/mp4">
                   </video>
                 </div>
@@ -616,6 +616,33 @@
 </main>
 
 <script>
+  // Safari is inconsistent about actually starting muted-autoplay videos,
+  // especially ones revealed later (inside a foldout) rather than present
+  // at initial page load. Explicitly nudge every video to play — once on
+  // load, and again any time a foldout opens (revealing new videos).
+  (function(){
+    function playAllVideos(root){
+      (root || document).querySelectorAll('video[autoplay]').forEach(function(v){
+        var p = v.play();
+        if (p && p.catch) p.catch(function(){ /* ignore - browser will retry on visibility */ });
+      });
+    }
+    if (document.readyState === 'loading'){
+      document.addEventListener('DOMContentLoaded', function(){ playAllVideos(); });
+    } else {
+      playAllVideos();
+    }
+    document.querySelectorAll('details.system').forEach(function(d){
+      var wasOpen = d.open;
+      new MutationObserver(function(){
+        if (d.open && !wasOpen) playAllVideos(d);
+        wasOpen = d.open;
+      }).observe(d, { attributes:true, attributeFilter:['open'] });
+    });
+  })();
+</script>
+
+<script>
   // Animated open/close for the system foldouts, based on the
   // details/summary height-animation pattern from web.dev. Opening one
   // foldout also shrinks any other open foldout in the same project, so
@@ -662,12 +689,22 @@
       var endHeight = this.summary.offsetHeight + 'px';
       if (this.animation) this.animation.cancel();
       var self = this;
-      this.animation = this.el.animate(
+      var thisAnimation = this.animation = this.el.animate(
         { height: [startHeight, endHeight] },
         { duration: DURATION, easing: 'ease-out' }
       );
-      this.animation.onfinish = function(){ self.onAnimationFinish(false); };
-      this.animation.oncancel = function(){ self.isClosing = false; };
+      var done = false;
+      function finish(){
+        if (done) return;
+        done = true;
+        self.onAnimationFinish(false);
+      }
+      thisAnimation.onfinish = finish;
+      thisAnimation.oncancel = function(){ self.isClosing = false; };
+      // Safety net: some browsers are unreliable about firing onfinish in
+      // every situation, which would leave the element stuck at a fixed
+      // pixel height forever instead of returning to natural auto-height.
+      setTimeout(finish, DURATION + 60);
     };
 
     Accordion.prototype.open = function(){
@@ -685,12 +722,20 @@
       var endHeight = (this.summary.offsetHeight + this.body.offsetHeight) + 'px';
       if (this.animation) this.animation.cancel();
       var self = this;
-      this.animation = this.el.animate(
+      var thisAnimation = this.animation = this.el.animate(
         { height: [startHeight, endHeight] },
         { duration: DURATION, easing: 'ease-out' }
       );
-      this.animation.onfinish = function(){ self.onAnimationFinish(true); };
-      this.animation.oncancel = function(){ self.isExpanding = false; };
+      var done = false;
+      function finish(){
+        if (done) return;
+        done = true;
+        self.onAnimationFinish(true);
+      }
+      thisAnimation.onfinish = finish;
+      thisAnimation.oncancel = function(){ self.isExpanding = false; };
+      // Safety net — see comment in shrink() above.
+      setTimeout(finish, DURATION + 60);
     };
 
     Accordion.prototype.onAnimationFinish = function(open){
