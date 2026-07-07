@@ -168,16 +168,23 @@
 
   /* Card body splits into a left "media + specs" column and a right
      "systems" column. Sits 50/50 by default, and narrows the left side
-     once a foldout is open so the systems column gets more room. */
+     once a foldout is open so the systems column gets more room.
+     Uses Flexbox rather than CSS Grid for this split specifically
+     because Safari has long-standing bugs animating grid-template-columns
+     (it can fail to apply the change at all, not just skip the
+     animation) — flex-basis has been reliably animatable everywhere,
+     Safari included, for well over a decade. */
   .panel-body{
-    display:grid; grid-template-columns:1fr 1fr;
-    transition:grid-template-columns 0.3s ease;
+    display:flex;
   }
-  .panel-body.shrink-media{grid-template-columns:0.6fr 1.4fr;}
   .panel-media{
+    flex:0 0 50%;
+    min-width:0;
     border-right:1px solid var(--line);
     display:flex; flex-direction:column;
+    transition:flex-basis 0.3s ease;
   }
+  .panel-body.shrink-media .panel-media{flex-basis:30%;}
   .panel-media .fields{border-bottom:none; flex:1;}
 
   .media-slot{
@@ -255,7 +262,7 @@
   }
   .field-row .value{color:var(--text-hi);}
 
-  .systems{padding:8px 16px 14px;}
+  .systems{padding:8px 16px 14px; flex:1 1 auto; min-width:0;}
   details.system{
     border-bottom:1px solid var(--line);
   }
@@ -320,7 +327,8 @@
   }
 
   @media (max-width:760px){
-    .panel-body, .panel-body.shrink-media{grid-template-columns:1fr;}
+    .panel-body{flex-direction:column;}
+    .panel-media, .panel-body.shrink-media .panel-media{flex-basis:auto;}
     .panel-media{border-right:none; border-bottom:1px solid var(--line);}
   }
 
