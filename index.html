@@ -713,7 +713,14 @@
       this.el.dispatchEvent(new Event('toggle'));
       closeSiblings(this.el);
       var self = this;
-      window.requestAnimationFrame(function(){ self.expand(); });
+      // Two frames, not one: newly-revealed content that switches layout
+      // via a media query (like our two-clip rows stacking on narrow
+      // screens) sometimes needs an extra paint cycle before its true
+      // height is settled — measuring after only one frame could catch
+      // it mid-reflow and lock in a too-short target height.
+      window.requestAnimationFrame(function(){
+        window.requestAnimationFrame(function(){ self.expand(); });
+      });
     };
 
     Accordion.prototype.expand = function(){
@@ -760,6 +767,22 @@
 
     document.querySelectorAll('details.system').forEach(function(el){
       registry.set(el, new Accordion(el));
+    });
+
+    // Safety net: if the viewport changes (like a phone rotating between
+    // portrait and landscape, which is exactly when our clip-rows switch
+    // between stacked and side-by-side), re-settle any currently-open
+    // accordion's height so it can't stay stuck at a stale measurement.
+    var resizeTimer = null;
+    window.addEventListener('resize', function(){
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(function(){
+        registry.forEach(function(acc, el){
+          if (el.open && !acc.isExpanding && !acc.isClosing){
+            el.style.height = '';
+          }
+        });
+      }, 150);
     });
   })();
 
