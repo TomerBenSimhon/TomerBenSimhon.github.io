@@ -334,6 +334,16 @@
 
   @media (max-width:480px){
     .system-clip-row{flex-direction:column;}
+    /* .system-clip-row .system-clip normally uses flex-basis:0 so it
+       shares width evenly in row mode. But flex-basis applies to the
+       *main axis*, and flipping to column makes that axis height, not
+       width — so a basis of 0 with nothing forcing the container's
+       height meant these clips collapsed toward zero height instead of
+       sizing to fit their (aspect-ratio-driven) content. Overriding
+       back to a content-based, non-growing size fixes that. */
+    .system-clip-row .system-clip,
+    .system-clip-row .system-clip.clip-wide,
+    .system-clip-row .system-clip.clip-narrow{flex:none;}
   }
 
   @media (max-width:640px){
