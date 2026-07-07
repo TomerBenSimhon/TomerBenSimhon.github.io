@@ -714,6 +714,12 @@
   // that card, and widens back to 50/50 a couple seconds after the last
   // one closes (so browsing between foldouts doesn't cause it to snap
   // back and forth).
+  //
+  // This watches the `open` attribute directly with a MutationObserver
+  // rather than listening for the `toggle` event — some browsers don't
+  // reliably fire `toggle` when `open` is set via script (which is how
+  // the accordion animation above works), but a MutationObserver picks
+  // up the attribute change regardless of what caused it.
   (function(){
     document.querySelectorAll('.panel').forEach(function(panel){
       var body = panel.querySelector('.panel-body');
@@ -737,8 +743,9 @@
         }
       }
 
+      var observer = new MutationObserver(update);
       detailsEls.forEach(function(d){
-        d.addEventListener('toggle', update);
+        observer.observe(d, { attributes:true, attributeFilter:['open'] });
       });
       update();
     });
