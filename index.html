@@ -142,12 +142,25 @@
   }
   .panel{
     background:var(--bg-panel);
-    border:1px solid var(--line);
+    border:1px solid var(--accent-border);
     border-radius:var(--radius);
     overflow:hidden;
     position:relative;
     transform-origin:top left;
+    --accent-border:rgba(90,171,232,0.35); /* default: Blue Sword Ninja's blue */
   }
+  /* Each project gets its own accent instead of all four looking like
+     one repeating template. Since the icon, field labels, foldout
+     carets/hover, and the genre chip all already read their color from
+     --accent-blue, overriding that one variable per card is enough to
+     recolor all of them consistently without touching each rule.
+     --accent-border is a dimmer, translucent version used just for the
+     card's outer edge, so the frame itself carries a hint of the same
+     identity without being as loud as the full accent color. */
+  .panel[data-accent="skyroads"]{ --accent-blue:#e0995a; --accent-border:rgba(224,153,90,0.35); }
+  .panel[data-accent="wall-e"]{ --accent-blue:#6fbf9e; --accent-border:rgba(111,191,158,0.35); }
+  .panel[data-accent="prototype"]{ --accent-blue:#d7a34e; --accent-border:rgba(215,163,78,0.35); }
+  /* Blue Sword Ninja intentionally keeps the site's default blue. */
   /* Breaks out of the normal contained width to nearly fill the
      viewport (with a visible gutter on each side, not edge-to-edge)
      while staying a completely normal in-flow element — it still pushes
@@ -166,6 +179,7 @@
     padding:12px 16px;
     display:flex; align-items:center; justify-content:space-between;
     border-bottom:1px solid var(--line);
+    border-top:3px solid var(--accent-blue);
     flex-wrap:wrap; gap:8px;
   }
   .panel-head .title{
@@ -175,8 +189,8 @@
   .panel-head .title .icon{color:var(--accent-blue); font-size:13px;}
   .chip{
     font-family:var(--mono); font-size:10.5px; letter-spacing:0.05em; text-transform:uppercase;
-    padding:3px 8px; border-radius:2px; border:1px solid var(--line-soft);
-    color:var(--text-lo);
+    padding:3px 8px; border-radius:2px;
+    color:var(--accent-blue); border:1px solid var(--accent-blue);
   }
   .chip.amber{color:var(--accent-amber); border-color:var(--accent-amber);}
   .chip.green{color:var(--accent-green); border-color:var(--accent-green);}
@@ -387,6 +401,7 @@
     <nav class="tabs">
       <a href="#home" class="active">Home</a>
       <a href="#projects">Projects</a>
+      <a href="#prototypes">Prototypes</a>
       <a href="#skills">Skills</a>
       <a href="#contact">Contact</a>
     </nav>
@@ -512,9 +527,9 @@
     </div>
 
     <!-- PROJECT 2 -->
-    <div class="panel">
+    <div class="panel" data-accent="skyroads">
       <div class="panel-head">
-        <span class="title"><span class="icon">▣</span>SkyRoadsRemake.cs</span>
+        <span class="title"><span class="icon">◆</span>SkyRoadsRemake.cs</span>
         <span class="chip">3D Platformer</span>
       </div>
       <div class="panel-body">
@@ -547,9 +562,9 @@
     </div>
 
     <!-- PROJECT 3 -->
-    <div class="panel">
+    <div class="panel" data-accent="wall-e">
       <div class="panel-head">
-        <span class="title"><span class="icon">▣</span>ProjectWallE.cs</span>
+        <span class="title"><span class="icon">⬡</span>ProjectWallE.cs</span>
         <span class="chip">3D Action Tower Defense</span>
       </div>
       <div class="panel-body">
@@ -573,17 +588,29 @@
       </div>
     </div>
 
+    </div>
+
+  </section>
+
+  <section id="prototypes">
+    <div class="section-head">
+      <span class="idx">02</span>
+      <h2 class="section-title">Prototypes</h2>
+    </div>
+
+    <div class="project-grid">
+
     <!-- PROJECT 4 - PLACEHOLDER -->
-    <div class="panel">
+    <div class="panel" data-accent="prototype">
       <div class="panel-head">
-        <span class="title"><span class="icon">▣</span>Untitled_Prototype.cs</span>
-        <span class="chip amber">In Progress — Systems Complete</span>
+        <span class="title"><span class="icon">◐</span>Untitled_Prototype.cs</span>
+        <span class="chip amber">Prototype — Systems Complete</span>
       </div>
       <div class="panel-body">
         <div class="panel-media">
-          <div class="media-slot"><span>art &amp; level pass in progress</span></div>
+          <div class="media-slot"><span>no art/level pass yet</span></div>
           <div class="fields">
-            <div class="field-row"><span class="label">Status</span><span class="value">Full mechanics &amp; code complete — art and level design still coming</span></div>
+            <div class="field-row"><span class="label">Status</span><span class="value">All mechanics &amp; code complete — shown here as a systems prototype, without a full art or level pass</span></div>
           </div>
         </div>
         <div class="systems">
@@ -601,7 +628,7 @@
 
   <section id="skills">
     <div class="section-head">
-      <span class="idx">02</span>
+      <span class="idx">03</span>
       <h2 class="section-title">Skills</h2>
     </div>
 
@@ -633,7 +660,7 @@
 
   <section id="contact">
     <div class="section-head">
-      <span class="idx">03</span>
+      <span class="idx">04</span>
       <h2 class="section-title">Contact</h2>
     </div>
     <p class="tagline">Open to Unity developer roles. The fastest way to reach me is below.</p>
