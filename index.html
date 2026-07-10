@@ -282,6 +282,79 @@
   .system-clip-row .system-clip.clip-wide{flex:1.6 1 0;}
   .system-clip-row .system-clip.clip-narrow{flex:1 1 0;}
 
+  /* Toggle buttons that open a code excerpt in a modal — a third kind
+     of proof alongside gameplay and editor clips: this is what the
+     underlying design actually looks like, not just a claim about it. */
+  .code-toggle-row{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px;}
+  .code-toggle-btn{
+    font-family:var(--mono); font-size:12px; color:var(--accent-blue);
+    background:none; border:1px solid var(--accent-blue); border-radius:2px;
+    padding:7px 11px; cursor:pointer;
+    display:inline-flex; align-items:center; gap:7px;
+    transition:background-color 0.15s ease, color 0.15s ease;
+  }
+  .code-toggle-btn:hover{background-color:var(--accent-blue); color:var(--bg-void);}
+
+  /* The actual snippet markup lives on the page permanently as a hidden
+     source — the modal below is a single reusable shell per project
+     card, and JS copies whichever snippet was requested into it. */
+  .code-source{display:none;}
+
+  .code-modal-backdrop{
+    position:fixed; inset:0;
+    background:rgba(8,8,9,0.72);
+    backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+    z-index:300;
+    display:flex; align-items:center; justify-content:center;
+    padding:24px;
+    opacity:0; pointer-events:none;
+    transition:opacity 0.25s ease;
+  }
+  .code-modal-backdrop.open{opacity:1; pointer-events:auto;}
+
+  .code-modal-box{
+    background:var(--bg-panel); border:1px solid var(--accent-blue);
+    border-radius:var(--radius);
+    width:100%; max-width:900px; max-height:80vh;
+    display:flex; flex-direction:column;
+    box-shadow:0 30px 70px rgba(0,0,0,0.55);
+    transform:scale(0.96); transition:transform 0.25s ease;
+  }
+  .code-modal-backdrop.open .code-modal-box{transform:scale(1);}
+
+  .code-modal-head{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:12px 16px; border-bottom:1px solid var(--line);
+    background:var(--bg-panel-head);
+  }
+  .code-modal-title{font-family:var(--mono); font-size:13px; color:var(--accent-blue);}
+  .code-modal-close{
+    background:none; border:1px solid var(--line-soft); border-radius:2px;
+    color:var(--text-lo); font-family:var(--mono); font-size:14px; cursor:pointer;
+    line-height:1; padding:5px 10px;
+    transition:color 0.15s ease, border-color 0.15s ease;
+  }
+  .code-modal-close:hover{color:var(--text-hi); border-color:var(--text-lo);}
+
+  .code-modal-body{overflow:auto;}
+  .code-modal-body pre{
+    margin:0; padding:16px 20px;
+    font-family:var(--mono); font-size:13px; line-height:1.65; color:var(--text-hi);
+    white-space:pre;
+  }
+  /* Custom token colors for Prism.js, matching the site's own palette
+     rather than one of its stock themes. */
+  .code-modal-body .token.comment{color:var(--text-dim); font-style:italic;}
+  .code-modal-body .token.keyword{color:var(--accent-blue-dim);}
+  .code-modal-body .token.class-name,
+  .code-modal-body .token.builtin{color:var(--accent-green);}
+  .code-modal-body .token.string{color:var(--accent-amber);}
+  .code-modal-body .token.number,
+  .code-modal-body .token.boolean{color:#b98eff;}
+  .code-modal-body .token.function{color:#dcdcaa;}
+  .code-modal-body .token.punctuation{color:var(--text-lo);}
+  .code-modal-body .token.operator{color:var(--text-hi);}
+
   .fields{padding:14px 16px; border-bottom:1px solid var(--line);}
   .field-row{
     display:flex; gap:16px; padding:5px 0; font-size:13.5px;
@@ -591,12 +664,98 @@
                 </div>
               </div>
             </div>
+            <div class="code-toggle-row">
+              <button class="code-toggle-btn" data-target="code-skyroads-interface" data-title="IPlatformEffect + PlatformDetection.cs">View Code — Interface + Detection</button>
+              <button class="code-toggle-btn" data-target="code-skyroads-boost" data-title="BoostPlatform.cs">View Code — BoostPlatform</button>
+            </div>
+            <div class="code-source" id="code-skyroads-interface"><pre><code class="language-csharp">public interface IPlatformEffect
+{
+    void Apply(PlayerController player, Rigidbody rb, PlatformDetection runner, ref Coroutine coroutine);
+    void Remove(PlayerController player, PlatformDetection runner, ref Coroutine coroutine);
+}
+
+// --- PlatformDetection.cs ---
+
+void HandlePlatformEnter()
+{
+    if (!TryDetectPlatform(out RaycastHit hit)) return;
+    if (!hit.transform.TryGetComponent(out IPlatformEffect newEffect)) return;
+
+    TryRemoveEffect(_currentPlatform);
+
+    _currentPlatform = hit.collider.gameObject;
+    newEffect.Apply(_controller, _rb, this, ref _currentPlatformCoroutine);
+    _isOnSpecialPlatform = true;
+}
+
+void HandlePlatformExit()
+{
+    if (!_isOnSpecialPlatform) return;
+    if (IsStillOnPlatform()) return;
+
+    TryRemoveEffect(_currentPlatform);
+    _currentPlatform = null;
+    _isOnSpecialPlatform = false;
+}</code></pre></div>
+            <div class="code-source" id="code-skyroads-boost"><pre><code class="language-csharp">public class BoostPlatform : MonoBehaviour, IPlatformEffect
+{
+    // ...tunable fields omitted: boostSpeed, boostDuration,
+    // initialImpulseModifier, boostStackCount, springModifier, jumpModifier
+    // (all [Range]-clamped in the Inspector)
+
+    public void Apply(PlayerController player, Rigidbody rb, PlatformDetection runner, ref Coroutine boostCoroutine)
+    {
+        runner.SetPlatform(PlatformType.Boost);
+
+        if (boostCoroutine != null)
+        {
+            runner.StopCoroutine(boostCoroutine);
+            boostCoroutine = null;
+        }
+
+        Vector3 boost = rb.linearVelocity;
+        boost.z = Mathf.Clamp(rb.linearVelocity.z * initialImpulseModifier, 0f,
+            player.DefaultSettings.forwardSpeed * initialImpulseModifier * boostStackCount);
+        rb.linearVelocity = boost.z &gt; rb.linearVelocity.z ? boost : rb.linearVelocity;
+
+        player.RuntimeSettings.forwardSpeed = boostSpeed;
+        player.RuntimeSettings.groundSpringStrength = springModifier * player.DefaultSettings.groundSpringStrength;
+        player.RuntimeSettings.jumpHeight = jumpModifier * player.DefaultSettings.jumpHeight;
+    }
+
+    public void Remove(PlayerController player, PlatformDetection runner, ref Coroutine boostCoroutine)
+    {
+        boostCoroutine = runner.StartCoroutine(StopBoost(player, boostDuration, runner));
+    }
+
+    IEnumerator StopBoost(PlayerController player, float duration, PlatformDetection runner)
+    {
+        yield return new WaitForSeconds(duration);
+
+        // restores forwardSpeed, groundSpringStrength, and jumpHeight
+        // back to their defaults — the mirror image of Apply() above
+        player.RuntimeSettings.forwardSpeed = player.DefaultSettings.forwardSpeed;
+
+        if (runner.CurrentPlatformType == PlatformType.Boost)
+            runner.SetPlatform(PlatformType.None);
+    }
+}</code></pre></div>
           </div>
         </details>
         <details class="system">
           <summary>Custom Editor Tools</summary>
           <div class="system-body">A grid-based Prefab Painter — effectively a 3D equivalent of Unity's 2D tilemap, built because the level's platforms follow a fixed grid. Paired with an Effect System and a Global Event script: a reusable component that any object can attach camera shake, sound, and particle effects to, triggered off shared events.</div>
         </details>
+        </div>
+      </div>
+
+      <div class="code-modal-backdrop">
+        <div class="code-modal-box">
+          <div class="code-modal-head">
+            <span class="code-modal-title"></span>
+            <button class="code-modal-close" aria-label="Close">✕</button>
+          </div>
+          <div class="code-modal-body"><pre><code class="language-csharp"></code></pre></div>
         </div>
       </div>
     </div>
@@ -718,7 +877,23 @@
 
 </main>
 
+<!-- Prism.js: lightweight syntax highlighting for the code preview
+     modals. Custom colors below match the site's own palette instead of
+     using one of Prism's stock themes. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-csharp.min.js"></script>
+
 <script>
+  // Highlight the hidden code-source blocks once, up front — the code
+  // modals just copy this already-highlighted markup in when opened,
+  // rather than re-running Prism on every open.
+  if (window.Prism){
+    document.querySelectorAll('.code-source code').forEach(function(el){
+      Prism.highlightElement(el);
+    });
+  }
+
   // Header videos (the ones with the `autoplay` attribute, at the top of
   // each project card) still start immediately, same as always. Foldout
   // videos deliberately do NOT have that attribute — they only start
@@ -1250,6 +1425,68 @@
       navigator.clipboard.writeText(emailLink.getAttribute('data-email')).then(function(){
         toast.classList.add('show');
         setTimeout(function(){ toast.classList.remove('show'); }, 1800);
+      });
+    });
+  })();
+
+  // Code preview buttons open a modal (with a blurred backdrop) rather
+  // than expanding inline. One reusable modal shell lives per project
+  // card, and JS copies whichever hidden .code-source block was
+  // requested into it. Deliberately not reusing the foldout accordion
+  // system for this: these buttons live nested inside a foldout's own
+  // body and would otherwise get miscounted as siblings.
+  (function(){
+    document.querySelectorAll('.panel').forEach(function(panel){
+      var modal = panel.querySelector('.code-modal-backdrop');
+      if (!modal) return;
+
+      // position:fixed is supposed to be relative to the viewport, but
+      // that breaks the moment any ancestor has a `transform` set — and
+      // .panel gets one during its own resize animation, which made the
+      // modal drift with the card and its scroll position instead of
+      // staying centered on screen. Moving it to be a direct child of
+      // <body> sidesteps that entirely. Since that also detaches it from
+      // the card's accent-color scope, copy the resolved color across
+      // first so it keeps looking like it belongs to this project.
+      var accent = getComputedStyle(panel).getPropertyValue('--accent-blue').trim();
+      if (accent) modal.style.setProperty('--accent-blue', accent);
+      document.body.appendChild(modal);
+
+      var titleEl = modal.querySelector('.code-modal-title');
+      var codeEl = modal.querySelector('.code-modal-body code');
+      var closeBtn = modal.querySelector('.code-modal-close');
+
+      function openModal(sourceEl, title){
+        codeEl.innerHTML = sourceEl.innerHTML;
+        titleEl.textContent = title || '';
+        modal.classList.add('open');
+
+        // Lock page scroll while the modal is open, compensating for
+        // the scrollbar disappearing so the page doesn't visibly shift.
+        var scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+        document.body.style.overflow = 'hidden';
+        if (scrollbarWidth > 0) document.body.style.paddingRight = scrollbarWidth + 'px';
+      }
+      function closeModal(){
+        modal.classList.remove('open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+      }
+
+      panel.querySelectorAll('.code-toggle-btn').forEach(function(btn){
+        btn.addEventListener('click', function(){
+          var source = document.getElementById(btn.getAttribute('data-target'));
+          if (!source) return;
+          openModal(source, btn.getAttribute('data-title'));
+        });
+      });
+
+      closeBtn.addEventListener('click', closeModal);
+      modal.addEventListener('click', function(e){
+        if (e.target === modal) closeModal(); // clicked the backdrop itself, not the box
+      });
+      document.addEventListener('keydown', function(e){
+        if (e.key === 'Escape' && modal.classList.contains('open')) closeModal();
       });
     });
   })();
