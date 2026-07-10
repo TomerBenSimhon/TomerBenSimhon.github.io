@@ -534,7 +534,11 @@
       </div>
       <div class="panel-body">
         <div class="panel-media">
-          <div class="media-slot"><span>gameplay clip — coming soon</span></div>
+          <div class="media-slot">
+            <video autoplay muted loop playsinline preload="auto">
+              <source src="media/skyRoads-remake/header.mp4" type="video/mp4">
+            </video>
+          </div>
           <div class="fields">
             <div class="field-row"><span class="label">Genre</span><span class="value">3D Platformer</span></div>
             <div class="field-row"><span class="label">Engine</span><span class="value">Unity 6000.3.2f1</span></div>
@@ -547,11 +551,47 @@
         <div class="systems">
         <details class="system">
           <summary>Player Controller</summary>
-          <div class="system-body">The same design goals as Blue Sword Ninja's controller — smooth, fluid movement, variable jump height, adaptive gravity — reworked for 3D space and traction on moving/tilting platforms.</div>
+          <div class="system-body">
+            The same design goals as Blue Sword Ninja's controller — smooth, fluid movement, variable jump height, adaptive gravity — reworked for 3D space and traction on moving/tilting platforms.
+            <div class="system-clip-row">
+              <div class="system-clip">
+                <div class="clip-media">
+                  <video muted loop playsinline preload="auto">
+                    <source src="media/skyRoads-remake/PlayerController01.mp4" type="video/mp4">
+                  </video>
+                </div>
+              </div>
+              <div class="system-clip">
+                <div class="clip-media">
+                  <video muted loop playsinline preload="auto">
+                    <source src="media/skyRoads-remake/PlayerController02.mp4" type="video/mp4">
+                  </video>
+                </div>
+              </div>
+            </div>
+          </div>
         </details>
         <details class="system">
           <summary>Modular Platform System</summary>
-          <div class="system-body">An interface-driven set of platform types — boost, refuel, slippery, and death — so each platform only needs to implement a shared behavior contract. New platform types can be added without touching the controller.</div>
+          <div class="system-body">
+            An interface-driven set of platform types — boost, refuel, slippery, and death — so each platform only needs to implement a shared behavior contract. New platform types can be added without touching the controller.
+            <div class="system-clip-row">
+              <div class="system-clip">
+                <div class="clip-media">
+                  <video muted loop playsinline preload="auto">
+                    <source src="media/skyRoads-remake/Platforms01.mp4" type="video/mp4">
+                  </video>
+                </div>
+              </div>
+              <div class="system-clip">
+                <div class="clip-media">
+                  <video muted loop playsinline preload="auto">
+                    <source src="media/skyRoads-remake/Platforms02.mp4" type="video/mp4">
+                  </video>
+                </div>
+              </div>
+            </div>
+          </div>
         </details>
         <details class="system">
           <summary>Custom Editor Tools</summary>
