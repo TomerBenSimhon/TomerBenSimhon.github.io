@@ -574,7 +574,7 @@
         <details class="system">
           <summary>Blob Enemy AI (State Machine)</summary>
           <div class="system-body">
-            A finite state machine driving Patrol, Search, and Attack behavior, so the enemy reacts differently depending on whether it has spotted the player, lost track of them, or is actively engaging.
+            A finite state machine driving six states — Patrol, Chase, Shocked, Hit, Stun, and Dead — each implemented as its own component. Switching state means enabling the matching one and disabling the rest, so each state's behavior lives in its own script instead of one large method handling all of them inline.
             <div class="system-clip-row">
               <div class="system-clip clip-wide">
                 <div class="clip-media">
@@ -582,7 +582,7 @@
                     <source src="media/blue-sword-ninja/blob-gameplay.mp4" type="video/mp4">
                   </video>
                 </div>
-                <div class="caption">patrol → search → attack</div>
+                <div class="caption">patrol → chase → hit/stun/dead</div>
               </div>
               <div class="system-clip clip-narrow">
                 <div class="clip-media">
@@ -593,8 +593,71 @@
                 <div class="caption">state machine in the inspector</div>
               </div>
             </div>
+            <div class="code-toggle-row">
+              <button class="code-toggle-btn" data-target="code-ninja-fsm" data-title="IEnemyState + EnemyMain.cs">View Code — Enemy State Machine</button>
+            </div>
+            <div class="code-source" id="code-ninja-fsm"><pre><code class="language-csharp">public enum EnemyState
+{
+    Patrol, Chase, Shocked, Hit, Stun, Dead
+}
+
+public interface IEnemyState
+{
+    EnemyState StateId { get; }
+    void Enter();
+    void Exit();
+}
+
+// --- EnemyMain.cs ---
+
+List&lt;IEnemyState&gt; allStates;
+[field: SerializeField] public EnemyState CurrentState { get; private set; }
+
+void Awake()
+{
+    // finds every state component on this enemy automatically —
+    // no manual wiring, works no matter how many states exist
+    allStates = new List&lt;IEnemyState&gt;(GetComponentsInChildren&lt;IEnemyState&gt;());
+    ChangeState(EnemyState.Patrol);
+}
+
+// What actually decides when to switch states — the enemy notices the
+// player, or loses track of them for long enough, and calls ChangeState.
+void StateControl()
+{
+    if (CurrentState == EnemyState.Patrol && IsPlayerSpotted())
+        ChangeState(EnemyState.Shocked);
+
+    if (CurrentState == EnemyState.Chase && !CanSeePlayer() && chaseExitTimerRoutine == null)
+        chaseExitTimerRoutine = StartCoroutine(ChaseStateExitTimer());
+}
+
+// Enables the matching state component and disables the rest.
+// Works for any number of states without a switch statement to maintain.
+public void ChangeState(EnemyState newState)
+{
+    if (newState == CurrentState) return;
+
+    foreach (var state in allStates)
+    {
+        if (state.StateId == newState) state.Enter();
+        else state.Exit();
+    }
+
+    CurrentState = newState;
+}</code></pre></div>
           </div>
         </details>
+        </div>
+      </div>
+
+      <div class="code-modal-backdrop">
+        <div class="code-modal-box">
+          <div class="code-modal-head">
+            <span class="code-modal-title"></span>
+            <button class="code-modal-close" aria-label="Close">✕</button>
+          </div>
+          <div class="code-modal-body"><pre><code class="language-csharp"></code></pre></div>
         </div>
       </div>
     </div>
