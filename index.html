@@ -168,7 +168,7 @@
   .panel.expanded{
     width:94vw;
     max-width:94vw;
-    min-height:calc(100vh - 140px); /* leaves ~70px clearance top & bottom below the sticky nav, matching NAV_CLEARANCE in JS */
+    min-height:calc(100vh - 90px); /* ~70px top clearance below the sticky nav (matches NAV_CLEARANCE in JS) + a small ~20px bottom margin */
     left:50%;
     margin-left:-47vw;
     z-index:5;
@@ -371,22 +371,26 @@
   details.system:last-child{border-bottom:none;}
   details.system summary{
     cursor:pointer; list-style:none;
-    padding:11px 4px;
+    padding:11px 12px;
     font-family:var(--mono); font-size:13.5px; color:var(--text-hi);
     display:flex; align-items:center; gap:8px;
-    border-radius:2px;
-    transition:background-color 0.15s ease, color 0.15s ease, padding-left 0.15s ease;
+    border-radius:3px;
+    border:1px solid var(--line-soft);
+    background:#2c2c2f;
+    margin:6px 0;
+    transition:background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
   }
   details.system summary:hover{
-    background-color:var(--bg-field);
+    background-color:#38383c;
     color:var(--accent-blue);
-    padding-left:8px;
+    border-color:var(--accent-blue);
   }
   details.system summary::-webkit-details-marker{display:none;}
   details.system summary::before{
-    content:"▸"; color:var(--accent-blue); font-size:11px;
+    content:"▸"; color:var(--accent-blue); font-size:16px; font-weight:700;
     transition:transform 0.15s ease;
     display:inline-block;
+    width:14px;
   }
   details.system[open] summary::before{transform:rotate(90deg);}
   details.system .system-body{
@@ -1236,14 +1240,23 @@ void HandlePlatformExit()
     // Takes the panel's true final rect (see flip() above) and returns
     // the scroll target it settles on, so the caller can treat that as
     // the new "home" position for scroll-away detection.
+    var SCROLL_EXTRA_GAP = 0; // extra breathing room on top of NAV_CLEARANCE
+
     function scrollToShow(rect){
       var viewportH = window.innerHeight;
-      var target;
-      if (rect.height >= viewportH - NAV_CLEARANCE){
-        target = window.scrollY + rect.top - NAV_CLEARANCE;
-      } else {
-        target = window.scrollY + rect.top - (viewportH - rect.height) / 2;
-      }
+      var minTop = NAV_CLEARANCE + SCROLL_EXTRA_GAP;
+
+      // The box's floor height (100vh minus its own CSS margin) is
+      // deliberately a bit shorter than viewportH, which means the
+      // "centered" branch below was actually the one always running in
+      // practice — and centering math has no idea the sticky nav exists,
+      // so it could happily place the box's top underneath it. Now both
+      // branches are clamped to never go above minTop, regardless of
+      // what the centering math alone would have produced.
+      var centeredTop = (viewportH - rect.height) / 2;
+      var effectiveTop = Math.max(centeredTop, minTop);
+
+      var target = window.scrollY + rect.top - effectiveTop;
       target = Math.max(0, target);
       window.scrollTo({ top: target, behavior: 'smooth' });
       return target;
