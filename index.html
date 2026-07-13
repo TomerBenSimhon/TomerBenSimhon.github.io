@@ -193,7 +193,6 @@
     color:var(--accent-blue); border:1px solid var(--accent-blue);
   }
   .chip.amber{color:var(--accent-amber); border-color:var(--accent-amber);}
-  .chip.green{color:var(--accent-green); border-color:var(--accent-green);}
 
   /* Card body splits into a left "media + specs" column and a right
      "systems" column. Sits 50/50 by default, and narrows the left side
@@ -237,7 +236,7 @@
     background:var(--bg-void); padding:5px 10px; border-radius:2px;
     border:1px solid var(--line-soft);
   }
-  .media-slot video{
+  .media-slot video, .system-clip video{
     position:absolute; inset:0;
     width:100%; height:100%; object-fit:cover; display:block;
     background:#000; border:none; outline:none;
@@ -255,14 +254,6 @@
   .system-clip .clip-media{
     position:relative; aspect-ratio:16/9; overflow:hidden;
     box-shadow:inset 0 0 0 4px var(--bg-panel);
-  }
-  .system-clip video{
-    position:absolute; inset:0;
-    width:100%; height:100%; object-fit:cover; display:block;
-    background:#000; border:none; outline:none;
-    transform:translateZ(0);
-    will-change:transform;
-    backface-visibility:hidden;
   }
   .system-clip .caption{
     font-family:var(--mono); font-size:11px; color:var(--text-dim);
@@ -359,9 +350,7 @@
   .field-row{
     display:flex; gap:16px; padding:5px 0; font-size:13.5px;
   }
-  .field-row .label{
-    font-family:var(--mono); color:var(--accent-blue); flex:0 0 110px; font-size:12.5px;
-  }
+  .field-row .label{flex:0 0 110px;}
   .field-row .value{color:var(--text-hi);}
 
   .systems{padding:8px 16px 14px; flex:1 1 auto; min-width:0;}
@@ -456,8 +445,10 @@
     border-bottom:1px solid var(--line);
   }
   .settings-row:last-child{border-bottom:none;}
-  .settings-row .label{font-family:var(--mono); color:var(--accent-blue); flex:0 0 170px; font-size:12.5px;}
+  .settings-row .label{flex:0 0 170px;}
   .settings-row .value{color:var(--text-hi);}
+
+  .field-row .label, .settings-row .label{font-family:var(--mono); color:var(--accent-blue); font-size:12.5px;}
 
   /* ---------- Footer / contact ---------- */
   footer{padding:48px 0 64px;}
@@ -954,7 +945,7 @@ void HandlePlatformExit()
     </div>
     <p class="tagline">Open to Unity developer roles. The fastest way to reach me is below.</p>
     <div class="toolbar-buttons">
-      <a class="btn primary" id="email-link" href="mailto:tomerbensim0@gmail.com" data-email="tomerbensim0@gmail.com">Email ↗<span class="copy-toast" id="email-toast">Copied tomerbensim0@gmail.com</span></a>
+      <a class="btn primary" id="email-link" href="mailto:tomerbensim0@gmail.com" data-email="tomerbensim0@gmail.com">Email ↗<span class="copy-toast" id="email-toast"></span></a>
       <a class="btn" href="https://github.com/TomerBenSimhon" target="_blank" rel="noopener">GitHub ↗</a>
       <a class="btn" href="https://www.linkedin.com/in/tomer-ben-simhon" target="_blank" rel="noopener">LinkedIn ↗</a>
       <a class="btn" href="https://yourname.itch.io" target="_blank" rel="noopener">itch.io ↗</a>
@@ -992,8 +983,12 @@ void HandlePlatformExit()
   // later always replays from frame one instead of resuming wherever it
   // happened to be.
   (function(){
-    function playAllVideos(root){
-      (root || document).querySelectorAll('video[autoplay]').forEach(function(v){
+    function eachVideo(root, selector, fn){
+      root.querySelectorAll(selector).forEach(fn);
+    }
+
+    function playAllVideos(){
+      eachVideo(document, 'video[autoplay]', function(v){
         var p = v.play();
         if (p && p.catch) p.catch(function(){ /* ignore - browser will retry on visibility */ });
       });
@@ -1005,7 +1000,7 @@ void HandlePlatformExit()
     }
 
     function playFoldoutVideos(root){
-      root.querySelectorAll('video').forEach(function(v){
+      eachVideo(root, 'video', function(v){
         v.currentTime = 0;
         var p = v.play();
         if (p && p.catch) p.catch(function(){ /* ignore */ });
@@ -1013,7 +1008,7 @@ void HandlePlatformExit()
     }
 
     function resetFoldoutVideos(root){
-      root.querySelectorAll('video').forEach(function(v){
+      eachVideo(root, 'video', function(v){
         v.pause();
         v.currentTime = 0;
       });
@@ -1074,16 +1069,12 @@ void HandlePlatformExit()
       }
     };
 
-    Accordion.prototype.shrink = function(){
-      this.isClosing = true;
-      // Always ensure clipping here, not just in onClick — closeSiblings
-      // calls shrink() directly on other open accordions, which used to
-      // skip this and let their content stay fully visible (uncropped)
-      // for the whole animation instead of gradually clipping as the
-      // box shrinks, only vanishing abruptly at the very end.
-      this.el.style.overflow = 'hidden';
+    // Shared by shrink()/expand() below — same animate/finish/oncancel/
+    // safety-timeout sequence either way, only the target height and
+    // which in-flight flag (isClosing vs isExpanding) differ.
+    Accordion.prototype.animateHeight = function(endHeight, opening){
+      if (opening) this.isExpanding = true; else this.isClosing = true;
       var startHeight = this.el.offsetHeight + 'px';
-      var endHeight = this.summary.offsetHeight + 'px';
       if (this.animation) this.animation.cancel();
       var self = this;
       var thisAnimation = this.animation = this.el.animate(
@@ -1094,14 +1085,26 @@ void HandlePlatformExit()
       function finish(){
         if (done) return;
         done = true;
-        self.onAnimationFinish(false);
+        self.onAnimationFinish(opening);
       }
       thisAnimation.onfinish = finish;
-      thisAnimation.oncancel = function(){ self.isClosing = false; };
+      thisAnimation.oncancel = function(){
+        if (opening) self.isExpanding = false; else self.isClosing = false;
+      };
       // Safety net: some browsers are unreliable about firing onfinish in
       // every situation, which would leave the element stuck at a fixed
       // pixel height forever instead of returning to natural auto-height.
       setTimeout(finish, DURATION + 60);
+    };
+
+    Accordion.prototype.shrink = function(){
+      // Always ensure clipping here, not just in onClick — closeSiblings
+      // calls shrink() directly on other open accordions, which used to
+      // skip this and let their content stay fully visible (uncropped)
+      // for the whole animation instead of gradually clipping as the
+      // box shrinks, only vanishing abruptly at the very end.
+      this.el.style.overflow = 'hidden';
+      this.animateHeight(this.summary.offsetHeight + 'px', false);
     };
 
     Accordion.prototype.open = function(){
@@ -1121,25 +1124,7 @@ void HandlePlatformExit()
     };
 
     Accordion.prototype.expand = function(){
-      this.isExpanding = true;
-      var startHeight = this.el.offsetHeight + 'px';
-      var endHeight = (this.summary.offsetHeight + this.body.offsetHeight) + 'px';
-      if (this.animation) this.animation.cancel();
-      var self = this;
-      var thisAnimation = this.animation = this.el.animate(
-        { height: [startHeight, endHeight] },
-        { duration: DURATION, easing: 'ease-out' }
-      );
-      var done = false;
-      function finish(){
-        if (done) return;
-        done = true;
-        self.onAnimationFinish(true);
-      }
-      thisAnimation.onfinish = finish;
-      thisAnimation.oncancel = function(){ self.isExpanding = false; };
-      // Safety net — see comment in shrink() above.
-      setTimeout(finish, DURATION + 60);
+      this.animateHeight((this.summary.offsetHeight + this.body.offsetHeight) + 'px', true);
     };
 
     Accordion.prototype.onAnimationFinish = function(open){
@@ -1213,6 +1198,17 @@ void HandlePlatformExit()
     var FLIP_DURATION = 200; // ms
     var NAV_CLEARANCE = 70; // roughly the sticky header's height + a gap
 
+    // Shared by flip() and animateSiblingShift() below: fake an element's
+    // old position/size with a transform, then animate that transform
+    // away to identity — the FLIP technique.
+    function animateTransform(el, fromTransform, toTransform){
+      el.style.transition = 'none';
+      el.style.transform = fromTransform;
+      void el.offsetWidth;
+      el.style.transition = 'transform ' + FLIP_DURATION + 'ms ease-out';
+      el.style.transform = toTransform;
+    }
+
     function flip(panel, applyChanges){
       var first = panel.getBoundingClientRect();
       applyChanges();
@@ -1222,11 +1218,9 @@ void HandlePlatformExit()
       var dx = first.left - last.left;
       var dy = first.top - last.top;
 
-      panel.style.transition = 'none';
-      panel.style.transform = 'translate(' + dx + 'px,' + dy + 'px) scale(' + scaleX + ',' + scaleY + ')';
-      void panel.offsetWidth;
-      panel.style.transition = 'transform ' + FLIP_DURATION + 'ms ease-out';
-      panel.style.transform = 'translate(0,0) scale(1,1)';
+      animateTransform(panel,
+        'translate(' + dx + 'px,' + dy + 'px) scale(' + scaleX + ',' + scaleY + ')',
+        'translate(0,0) scale(1,1)');
 
       // The true final layout position, measured before the transform
       // trick above was applied — so callers can rely on it instead of
@@ -1240,11 +1234,9 @@ void HandlePlatformExit()
     // Takes the panel's true final rect (see flip() above) and returns
     // the scroll target it settles on, so the caller can treat that as
     // the new "home" position for scroll-away detection.
-    var SCROLL_EXTRA_GAP = 0; // extra breathing room on top of NAV_CLEARANCE
-
     function scrollToShow(rect){
       var viewportH = window.innerHeight;
-      var minTop = NAV_CLEARANCE + SCROLL_EXTRA_GAP;
+      var minTop = NAV_CLEARANCE;
 
       // The box's floor height (100vh minus its own CSS margin) is
       // deliberately a bit shorter than viewportH, which means the
@@ -1269,11 +1261,7 @@ void HandlePlatformExit()
         var dy = first.top - last.top;
         if (Math.abs(dy) < 1) return;
 
-        el.style.transition = 'none';
-        el.style.transform = 'translate(0,' + dy + 'px)';
-        void el.offsetWidth;
-        el.style.transition = 'transform ' + FLIP_DURATION + 'ms ease-out';
-        el.style.transform = 'translate(0,0)';
+        animateTransform(el, 'translate(0,' + dy + 'px)', 'translate(0,0)');
 
         setTimeout(function(){
           el.style.transition = '';
@@ -1303,8 +1291,9 @@ void HandlePlatformExit()
     }
 
     var currentExpandedController = null;
+    var allPanels = document.querySelectorAll('.panel');
 
-    document.querySelectorAll('.panel').forEach(function(panel){
+    allPanels.forEach(function(panel){
       var body = panel.querySelector('.panel-body');
       var detailsEls = panel.querySelectorAll('details.system');
       if (!body || detailsEls.length === 0) return;
@@ -1431,7 +1420,6 @@ void HandlePlatformExit()
       update();
     });
 
-    var allPanels = document.querySelectorAll('.panel');
     var ticking = false;
     window.addEventListener('scroll', function(){
       if (ticking) return;
@@ -1456,8 +1444,11 @@ void HandlePlatformExit()
 
     var suppressScroll = false;
     var suppressTimer = null;
+    var activeId = null;
 
     function setActive(id){
+      if (id === activeId) return;
+      activeId = id;
       tabs.forEach(function(tab){
         tab.classList.toggle('active', tab.getAttribute('href') === '#' + id);
       });
@@ -1507,7 +1498,15 @@ void HandlePlatformExit()
       }, { passive: true });
     });
 
-    window.addEventListener('scroll', updateFromScrollPosition, { passive: true });
+    var navTicking = false;
+    window.addEventListener('scroll', function(){
+      if (navTicking) return;
+      navTicking = true;
+      window.requestAnimationFrame(function(){
+        updateFromScrollPosition();
+        navTicking = false;
+      });
+    }, { passive: true });
     window.addEventListener('resize', updateFromScrollPosition, { passive: true });
     updateFromScrollPosition();
   })();
@@ -1521,7 +1520,9 @@ void HandlePlatformExit()
     if (!emailLink || !toast || !navigator.clipboard) return;
 
     emailLink.addEventListener('click', function(){
-      navigator.clipboard.writeText(emailLink.getAttribute('data-email')).then(function(){
+      var email = emailLink.getAttribute('data-email');
+      navigator.clipboard.writeText(email).then(function(){
+        toast.textContent = 'Copied ' + email;
         toast.classList.add('show');
         setTimeout(function(){ toast.classList.remove('show'); }, 1800);
       });
