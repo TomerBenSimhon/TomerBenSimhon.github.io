@@ -824,8 +824,90 @@ void HandlePlatformExit()
           </div>
         </details>
         <details class="system">
-          <summary>Custom Editor Tools</summary>
-          <div class="system-body">A grid-based Prefab Painter — effectively a 3D equivalent of Unity's 2D tilemap, built because the level's platforms follow a fixed grid. Paired with an Effect System and a Global Event script: a reusable component that any object can attach camera shake, sound, and particle effects to, triggered off shared events.</div>
+          <summary>Prefab Brush Tool (Custom Editor Tool)</summary>
+          <div class="system-body">
+            An in-editor level-painting tool I built to place grid-snapped prefabs directly in the Scene view, since the level's platforms follow a fixed grid. It has a custom editor window with a searchable, folder-organized prefab palette, and supports freehand brush and rectangle-fill tools, paint and erase modes, live ghost previews, click-drag continuous painting, press-R rotation, scroll-to-change-height, and full undo support. Snapping is normal-aware, so pieces can be painted onto the tops and sides of existing ones to build in 3D, not just on a flat plane.
+            <div class="system-clip-row">
+              <div class="system-clip">
+                <div class="clip-media">
+                  <video muted loop playsinline preload="auto">
+                    <source src="media/skyRoads-remake/PrefabBrush1.mp4" type="video/mp4">
+                  </video>
+                </div>
+                <div class="caption">brush painting + ghost preview</div>
+              </div>
+              <div class="system-clip">
+                <div class="clip-media">
+                  <video muted loop playsinline preload="auto">
+                    <source src="media/skyRoads-remake/PrefabBrush2.mp4" type="video/mp4">
+                  </video>
+                </div>
+                <div class="caption">rectangle fill + erase + rotate</div>
+              </div>
+            </div>
+            <div class="code-toggle-row">
+              <button class="code-toggle-btn" data-target="code-skyroads-brush" data-title="PrefabBrush.cs — editor hook &amp; snapping">View Code — Scene Hook &amp; Snapping</button>
+            </div>
+            <div class="code-source" id="code-skyroads-brush"><pre><code class="language-csharp">// Hooks into Unity's Scene view — this is what lets the tool draw
+// ghosts and handle clicks directly in the editor viewport.
+[InitializeOnLoad]
+public static class PrefabBrush
+{
+    static readonly Vector3 gridSize = new(3f, 0.5f, 3f);
+
+    static PrefabBrush()
+    {
+        SceneView.duringSceneGui += OnSceneGUI;
+        EnvironmentPrefabWindow.OnWindowSceneGUI += OnSceneGUI;
+    }
+
+    static void OnSceneGUI(SceneView sceneView)
+    {
+        if (!EnvironmentPrefabWindow.IsWindowOpen) { DestroyGhost(false); return; }
+
+        // route raw editor input to the active tool (brush / rectangle)
+        switch (_tool)
+        {
+            case BrushTool.Brush:     HandleBrushToolInput();  break;
+            case BrushTool.Rectangle: HandleRectToolInput();   break;
+        }
+    }
+
+    static Vector3 SnapToGrid(Vector3 pos, Vector3 grid) => new(
+        Mathf.Round(pos.x / grid.x) * grid.x,
+        Mathf.Round(pos.y / grid.y) * grid.y,
+        Mathf.Round(pos.z / grid.z) * grid.z
+    );
+
+    // Snaps to the grid — but if that cell is already occupied, steps one
+    // cell along the surface normal instead. That's what lets pieces be
+    // painted onto the tops and sides of existing ones, building in 3D.
+    static Vector3 SnapToFreePlace(Vector3 pos, Vector3 normal, Vector3 grid)
+    {
+        Vector3 snapped = SnapToGrid(pos, grid);
+
+        if (!Physics.CheckBox(snapped, grid * 0.4f, Quaternion.identity,
+                _paintingLayer, QueryTriggerInteraction.Collide))
+            return snapped;
+
+        // occupied → offset one cell along the dominant axis of the normal
+        Vector3 dir = KeepLargestComponent(normal).normalized;
+        return snapped + Vector3.Scale(grid, dir);
+    }
+
+    // Reduces a normal to its single strongest axis, so snapping stays
+    // stable on flat surfaces instead of jittering between axes.
+    static Vector3 KeepLargestComponent(Vector3 v)
+    {
+        float max = Mathf.Max(Mathf.Abs(v.x), Mathf.Abs(v.y), Mathf.Abs(v.z));
+        return new Vector3(
+            Mathf.Approximately(Mathf.Abs(v.x), max) ? v.x : 0f,
+            Mathf.Approximately(Mathf.Abs(v.y), max) ? v.y : 0f,
+            Mathf.Approximately(Mathf.Abs(v.z), max) ? v.z : 0f
+        );
+    }
+}</code></pre></div>
+          </div>
         </details>
         </div>
       </div>
