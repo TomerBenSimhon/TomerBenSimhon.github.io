@@ -303,6 +303,62 @@
   }
   .code-modal-backdrop.open{opacity:1; pointer-events:auto;}
 
+  /* Clips that can be expanded to a bigger player get a small hint icon
+     in the corner and a pointer cursor, so it's clear they're clickable.
+     The whole clip is the click target (see JS); the icon is just a cue. */
+  .clip-media.expandable{cursor:pointer;}
+  .clip-media.expandable .expand-hint{
+    position:absolute; top:8px; right:8px; z-index:2;
+    width:38px; height:38px;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(8,8,9,0.6); border:1px solid rgba(255,255,255,0.25);
+    border-radius:3px; color:#fff;
+    opacity:0.75; transition:opacity 0.15s ease, background-color 0.15s ease;
+    pointer-events:none;
+  }
+  .clip-media.expandable:hover .expand-hint{opacity:1; background:rgba(8,8,9,0.85);}
+  .clip-media.expandable .expand-hint svg{width:22px; height:22px;}
+
+  /* Video popup — same blurred backdrop / scale-in shell as the code
+     modal, but sized for a large video with native playback controls. */
+  .video-modal-backdrop{
+    position:fixed; inset:0;
+    background:rgba(8,8,9,0.8);
+    backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+    z-index:300;
+    display:flex; align-items:center; justify-content:center;
+    padding:32px;
+    opacity:0; pointer-events:none;
+    transition:opacity 0.25s ease;
+  }
+  .video-modal-backdrop.open{opacity:1; pointer-events:auto;}
+  .video-modal-box{
+    width:100%; max-width:1400px;
+    transform:scale(0.96); transition:transform 0.25s ease;
+    position:relative;
+  }
+  .video-modal-backdrop.open .video-modal-box{transform:scale(1);}
+  .video-modal-box video{
+    width:100%; max-height:82vh; display:block;
+    border-radius:var(--radius);
+    border:1px solid var(--accent-blue);
+    box-shadow:0 30px 70px rgba(0,0,0,0.6);
+    background:#000;
+  }
+  .video-modal-close{
+    position:absolute; top:-14px; right:-14px;
+    width:34px; height:34px; border-radius:50%;
+    background:var(--bg-panel); border:1px solid var(--accent-blue);
+    color:var(--text-hi); font-family:var(--mono); font-size:15px; cursor:pointer;
+    line-height:1; display:flex; align-items:center; justify-content:center;
+    transition:background-color 0.15s ease;
+  }
+  .video-modal-close:hover{background:var(--accent-blue); color:var(--bg-void);}
+  .video-modal-caption{
+    margin-top:10px; text-align:center;
+    font-family:var(--mono); font-size:12px; color:var(--text-lo);
+  }
+
   .code-modal-box{
     background:var(--bg-panel); border:1px solid var(--accent-blue);
     border-radius:var(--radius);
@@ -689,20 +745,22 @@ void HandlePlatformExit()
             An in-editor level-painting tool I built to place grid-snapped prefabs directly in the Scene view, since the level's platforms follow a fixed grid. It has a custom editor window with a searchable, folder-organized prefab palette, and supports freehand brush and rectangle-fill tools, paint and erase modes, live ghost previews, click-drag continuous painting, press-R rotation, scroll-to-change-height, and full undo support. Snapping is normal-aware, so pieces can be painted onto the tops and sides of existing ones to build in 3D, not just on a flat plane.
             <div class="system-clip-row">
               <div class="system-clip">
-                <div class="clip-media">
+                <div class="clip-media expandable" data-video="media/skyRoads-remake/PrefabBrush01.mp4" data-caption="Prefab Brush — brush painting, ghost preview + rotate">
+                  <span class="expand-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></span>
                   <video muted loop playsinline preload="auto">
-                    <source src="media/skyRoads-remake/PrefabBrush1.mp4" type="video/mp4">
+                    <source src="media/skyRoads-remake/PrefabBrush01.mp4" type="video/mp4">
                   </video>
                 </div>
-                <div class="caption">brush painting + ghost preview</div>
+                <div class="caption">brush painting + ghost preview + rotate</div>
               </div>
               <div class="system-clip">
-                <div class="clip-media">
+                <div class="clip-media expandable" data-video="media/skyRoads-remake/PrefabBrush02.mp4" data-caption="Prefab Brush — rectangle fill + erase">
+                  <span class="expand-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></span>
                   <video muted loop playsinline preload="auto">
-                    <source src="media/skyRoads-remake/PrefabBrush2.mp4" type="video/mp4">
+                    <source src="media/skyRoads-remake/PrefabBrush02.mp4" type="video/mp4">
                   </video>
                 </div>
-                <div class="caption">rectangle fill + erase + rotate</div>
+                <div class="caption">rectangle fill + erase</div>
               </div>
             </div>
             <div class="code-toggle-row">
@@ -771,7 +829,28 @@ public static class PrefabBrush
         </details>
         <details class="system">
           <summary><span class="kind-icon" title="Custom tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span>Event-Driven Effect System</summary>
-          <div class="system-body">A data-driven effect system that lets designers wire up reactive camera, particle, and sound effects entirely in the Inspector — no new code per effect. An Effects component on any object listens to a central bitflag event bus, and each configured spec declares which events trigger or cancel it, with an optional per-sender filter. Camera effects are the standout: a manager sums every active effect's FOV, position, and rotation deltas each frame and feeds one combined result into Cinemachine, so multiple shakes and pulses stack additively instead of overriding each other. Adding a whole new reactive effect is pure Inspector setup; only a brand-new kind of camera effect needs code, via a small interface.</div>
+          <div class="system-body">A data-driven effect system that lets designers wire up reactive camera, particle, and sound effects entirely in the Inspector — no new code per effect. An Effects component on any object listens to a central bitflag event bus, and each configured spec declares which events trigger or cancel it, with an optional per-sender filter. Camera effects are the standout: a manager sums every active effect's FOV, position, and rotation deltas each frame and feeds one combined result into Cinemachine, so multiple shakes and pulses stack additively instead of overriding each other. Adding a whole new reactive effect is pure Inspector setup; only a brand-new kind of camera effect needs code, via a small interface.
+            <div class="system-clip-row">
+              <div class="system-clip">
+                <div class="clip-media expandable" data-video="media/skyRoads-remake/EffectSystem01.mp4" data-caption="Effect System — configured in the Inspector">
+                  <span class="expand-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></span>
+                  <video muted loop playsinline preload="auto">
+                    <source src="media/skyRoads-remake/EffectSystem01.mp4" type="video/mp4">
+                  </video>
+                </div>
+                <div class="caption">configured in the Inspector</div>
+              </div>
+              <div class="system-clip">
+                <div class="clip-media expandable" data-video="media/skyRoads-remake/EffectSystem02.mp4" data-caption="Effect System — effects firing in-game">
+                  <span class="expand-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></span>
+                  <video muted loop playsinline preload="auto">
+                    <source src="media/skyRoads-remake/EffectSystem02.mp4" type="video/mp4">
+                  </video>
+                </div>
+                <div class="caption">effects firing in-game</div>
+              </div>
+            </div>
+          </div>
         </details>
         </div>
       </div>
@@ -1055,6 +1134,14 @@ public void ChangeState(EnemyState newState)
   </footer>
 
 </main>
+
+<div class="video-modal-backdrop" id="video-modal">
+  <div class="video-modal-box">
+    <button class="video-modal-close" aria-label="Close">✕</button>
+    <video controls muted loop playsinline preload="auto"></video>
+    <div class="video-modal-caption"></div>
+  </div>
+</div>
 
 <!-- Prism.js: lightweight syntax highlighting for the code preview
      modals. Custom colors below match the site's own palette instead of
@@ -1686,6 +1773,55 @@ public void ChangeState(EnemyState newState)
       document.addEventListener('keydown', function(e){
         if (e.key === 'Escape' && modal.classList.contains('open')) closeModal();
       });
+    });
+  })();
+
+  // Expandable clips (the tool demos) open in a larger popup with native
+  // playback controls — still muted, but now pausable and scrubbable.
+  // One shared modal shell is reused for whichever clip was clicked, and
+  // the video always restarts from the beginning on open.
+  (function(){
+    var modal = document.getElementById('video-modal');
+    if (!modal) return;
+
+    var video = modal.querySelector('video');
+    var caption = modal.querySelector('.video-modal-caption');
+    var closeBtn = modal.querySelector('.video-modal-close');
+
+    function openVideo(src, cap){
+      video.querySelectorAll('source').forEach(function(s){ s.remove(); });
+      var source = document.createElement('source');
+      source.src = src;
+      source.type = 'video/mp4';
+      video.appendChild(source);
+      caption.textContent = cap || '';
+      video.load();
+      modal.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      // Start from the beginning and play once it's ready.
+      video.currentTime = 0;
+      var p = video.play();
+      if (p && p.catch) p.catch(function(){ /* user can hit play */ });
+    }
+
+    function closeVideo(){
+      modal.classList.remove('open');
+      document.body.style.overflow = '';
+      video.pause();
+    }
+
+    document.querySelectorAll('.clip-media.expandable').forEach(function(clip){
+      clip.addEventListener('click', function(){
+        openVideo(clip.getAttribute('data-video'), clip.getAttribute('data-caption'));
+      });
+    });
+
+    closeBtn.addEventListener('click', closeVideo);
+    modal.addEventListener('click', function(e){
+      if (e.target === modal) closeVideo(); // backdrop click, not the video/box
+    });
+    document.addEventListener('keydown', function(e){
+      if (e.key === 'Escape' && modal.classList.contains('open')) closeVideo();
     });
   })();
 </script>
