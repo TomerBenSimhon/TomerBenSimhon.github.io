@@ -832,24 +832,137 @@ public static class PrefabBrush
           <div class="system-body">A data-driven effect system that lets designers wire up reactive camera, particle, and sound effects entirely in the Inspector — no new code per effect. An Effects component on any object listens to a central bitflag event bus, and each configured spec declares which events trigger or cancel it, with an optional per-sender filter. Camera effects are the standout: a manager sums every active effect's FOV, position, and rotation deltas each frame and feeds one combined result into Cinemachine, so multiple shakes and pulses stack additively instead of overriding each other. Adding a whole new reactive effect is pure Inspector setup; only a brand-new kind of camera effect needs code, via a small interface.
             <div class="system-clip-row">
               <div class="system-clip">
-                <div class="clip-media expandable" data-video="media/skyRoads-remake/EffectSystem01.mp4" data-caption="Effect System — configured in the Inspector">
+                <div class="clip-media expandable" data-video="media/skyRoads-remake/EffectSystem01.mp4" data-caption="Effect System — particle effects, triggered by stackable events">
                   <span class="expand-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></span>
                   <video muted loop playsinline preload="auto">
                     <source src="media/skyRoads-remake/EffectSystem01.mp4" type="video/mp4">
                   </video>
                 </div>
-                <div class="caption">configured in the Inspector</div>
+                <div class="caption">particle effects, triggered by stackable events</div>
               </div>
               <div class="system-clip">
-                <div class="clip-media expandable" data-video="media/skyRoads-remake/EffectSystem02.mp4" data-caption="Effect System — effects firing in-game">
+                <div class="clip-media expandable" data-video="media/skyRoads-remake/EffectSystem02.mp4" data-caption="Effect System — camera effects, additive across multiple effects">
                   <span class="expand-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></span>
                   <video muted loop playsinline preload="auto">
                     <source src="media/skyRoads-remake/EffectSystem02.mp4" type="video/mp4">
                   </video>
                 </div>
-                <div class="caption">effects firing in-game</div>
+                <div class="caption">camera effects, additive across multiple effects</div>
               </div>
             </div>
+            <div class="code-toggle-row">
+              <button class="code-toggle-btn" data-target="code-skyroads-effects-bus" data-title="Effects.cs — Event Bus">View Code — Event Bus</button>
+              <button class="code-toggle-btn" data-target="code-skyroads-effects-camera" data-title="ICameraEffect + CameraEffectsManager.cs">View Code — Additive Camera Effects</button>
+            </div>
+            <div class="code-source" id="code-skyroads-effects-bus"><pre><code class="language-csharp">[DefaultExecutionOrder(-10)]
+public class Effects : MonoBehaviour
+{
+    [SerializeReference] private List&lt;CameraEffectSpec&gt; cameraEffects = new();
+    [SerializeField] private List&lt;ParticleEffectSpec&gt; particleEffects = new();
+    [SerializeField] private List&lt;SoundEffectSpec&gt; soundEffects = new();
+
+    private void OnEnable()  =&gt; GlobalEvents.Raised += OnEvent;
+    private void OnDisable() =&gt; GlobalEvents.Raised -= OnEvent;
+
+    // Every spec list follows the same cancel-then-trigger shape: first
+    // let any spec that matches the cancel mask stop itself, then let
+    // any spec that matches the trigger mask fire. Camera, particles,
+    // and sound (via AudioManager) all go through this same pattern —
+    // sound omitted below since it's identical to particles.
+    private void OnEvent(GlobalEvents.Id id, GameObject sender)
+    {
+        // CAMERA
+        if (CameraEffectsManager.I != null &amp;&amp; cameraEffects != null)
+        {
+            foreach (var spec in cameraEffects)
+                if (spec != null &amp;&amp; spec.MatchesCancel(id, sender))
+                    CameraEffectsManager.I.CancelTag(spec.tag);
+
+            var call = new EffectCall { source = transform, target = null, position = transform.position, magnitude = 1f };
+
+            foreach (var spec in cameraEffects)
+            {
+                if (spec == null || !spec.MatchesTrigger(id, sender)) continue;
+                var eff = spec.Build(call);
+                if (eff != null) CameraEffectsManager.I.Play(eff, spec.replaceExisting);
+            }
+        }
+
+        // PARTICLES
+        if (particleEffects != null)
+        {
+            foreach (var pspec in particleEffects)
+                if (pspec != null &amp;&amp; pspec.MatchesCancel(id, sender))
+                {
+                    pspec.Stop(id);
+                    if (pspec.particleObject) pspec.particleObject.SetActive(false);
+                }
+
+            foreach (var pspec in particleEffects)
+                if (pspec != null &amp;&amp; pspec.MatchesTrigger(id, sender))
+                {
+                    if (pspec.particleObject) pspec.particleObject.SetActive(true);
+                    pspec.Play();
+                }
+        }
+
+        // ...SOUNDS follows the identical cancel → trigger shape, routed
+        // through AudioManager instead of a ParticleController.
+    }
+}</code></pre></div>
+            <div class="code-source" id="code-skyroads-effects-camera"><pre><code class="language-csharp">public struct CamDelta
+{
+    public float   fovAdd;
+    public Vector3 posAdd;
+    public Vector3 eulerAdd;
+
+    public static CamDelta Zero =&gt; new CamDelta { fovAdd = 0f, posAdd = default, eulerAdd = default };
+}
+
+public interface ICameraEffect
+{
+    string Tag { get; }
+    bool IsFinished { get; }
+    void OnStart(CameraEffectsManager ctx);
+    CamDelta Tick(float dt);
+    void Cancel();
+}
+
+// --- CameraEffectsManager.cs ---
+// Every active effect (a shake, a FOV pulse, etc.) is ticked every frame
+// and its delta summed into one combined value — this is what lets
+// several effects stack additively instead of one overriding another.
+private readonly List&lt;ICameraEffect&gt; _effects = new();
+
+private void LateUpdate()
+{
+    if (!vcam || !shakeExt) return;
+
+    float dt = Time.unscaledDeltaTime;
+
+    float   fovAdd = 0f;
+    Vector3 posAdd = Vector3.zero;
+    Vector3 eulAdd = Vector3.zero;
+
+    for (int i = _effects.Count - 1; i &gt;= 0; --i)
+    {
+        var e = _effects[i];
+        CamDelta d = e.Tick(dt);
+
+        fovAdd += d.fovAdd;
+        posAdd += d.posAdd;
+        eulAdd += d.eulerAdd;
+
+        if (e.IsFinished)
+            _effects.RemoveAt(i);
+    }
+
+    // Hand off the single combined result to Cinemachine, applied once
+    // at the end of its pipeline (see CameraShakeExtension).
+    shakeExt.posAdd   = applyPositionShake ? posAdd : Vector3.zero;
+    shakeExt.eulerAdd = applyRotationShake ? eulAdd : Vector3.zero;
+    shakeExt.fovAdd   = applyFovShake      ? fovAdd : 0f;
+}</code></pre></div>
           </div>
         </details>
         </div>
@@ -981,10 +1094,10 @@ void Awake()
 // player, or loses track of them for long enough, and calls ChangeState.
 void StateControl()
 {
-    if (CurrentState == EnemyState.Patrol && IsPlayerSpotted())
+    if (CurrentState == EnemyState.Patrol &amp;&amp; IsPlayerSpotted())
         ChangeState(EnemyState.Shocked);
 
-    if (CurrentState == EnemyState.Chase && !CanSeePlayer() && chaseExitTimerRoutine == null)
+    if (CurrentState == EnemyState.Chase &amp;&amp; !CanSeePlayer() &amp;&amp; chaseExitTimerRoutine == null)
         chaseExitTimerRoutine = StartCoroutine(ChaseStateExitTimer());
 }
 
@@ -1779,7 +1892,10 @@ public void ChangeState(EnemyState newState)
   // Expandable clips (the tool demos) open in a larger popup with native
   // playback controls — still muted, but now pausable and scrubbable.
   // One shared modal shell is reused for whichever clip was clicked, and
-  // the video always restarts from the beginning on open.
+  // the video always restarts from the beginning on open. The modal's
+  // own --accent-blue is set from the clicked clip's project card each
+  // time, so the popup's border and close button pick up that project's
+  // accent color instead of always defaulting to the site-wide blue.
   (function(){
     var modal = document.getElementById('video-modal');
     if (!modal) return;
@@ -1788,7 +1904,8 @@ public void ChangeState(EnemyState newState)
     var caption = modal.querySelector('.video-modal-caption');
     var closeBtn = modal.querySelector('.video-modal-close');
 
-    function openVideo(src, cap){
+    function openVideo(src, cap, accent){
+      if (accent) modal.style.setProperty('--accent-blue', accent);
       video.querySelectorAll('source').forEach(function(s){ s.remove(); });
       var source = document.createElement('source');
       source.src = src;
@@ -1812,7 +1929,9 @@ public void ChangeState(EnemyState newState)
 
     document.querySelectorAll('.clip-media.expandable').forEach(function(clip){
       clip.addEventListener('click', function(){
-        openVideo(clip.getAttribute('data-video'), clip.getAttribute('data-caption'));
+        var panel = clip.closest('.panel');
+        var accent = panel ? getComputedStyle(panel).getPropertyValue('--accent-blue').trim() : '';
+        openVideo(clip.getAttribute('data-video'), clip.getAttribute('data-caption'), accent);
       });
     });
 
