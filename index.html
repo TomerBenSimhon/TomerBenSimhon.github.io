@@ -109,8 +109,8 @@
      padding growth. Scoped to wider screens — the stacked mobile nav
      below already handles small viewports. */
   @media (min-width:641px){
-    header.toolbar.nav-hero .brand{font-size:16px;}
-    header.toolbar.nav-hero nav.tabs a{font-size:14.5px; padding:14px 20px; letter-spacing:0.07em;}
+    header.toolbar.nav-hero .brand{font-size:20px;}
+    header.toolbar.nav-hero nav.tabs a{font-size:17px; padding:14px 20px; letter-spacing:0.07em;}
   }
 
   /* ---------- Hero ---------- */
@@ -2303,38 +2303,56 @@ public void ChangeState(EnemyState newState)
   })();
 
   // Hero ⇄ Projects scroll snap: while sitting in the hero, any downward
-  // scroll jumps straight to the top of Projects instead of slowly
-  // scrolling through the hero; scrolling up again from right at the top
-  // of Projects snaps straight back to the hero. This only engages right
-  // at that one boundary — the moment you're actually browsing inside
-  // Projects (or any section after it), scrolling is completely normal.
-  // Scoped to desktop, matching the other hero/nav-size behavior above.
+  // scroll jumps straight to the top of Projects; scrolling up from the
+  // top of Projects snaps back to the hero. Only engages at that one
+  // boundary — inside Projects (or below), scrolling is normal. Desktop
+  // only, matching the other hero behavior above.
   (function(){
     var projects = document.getElementById('projects');
     if (!projects) return;
 
-    var LOCK_MS = 700;
-    var locked = false;
-    var lockTimer = null;
+    var snapping = false;
+    var cooldownUntil = 0;
 
     function projectsSnapTop(){
-      // Mirrors the scroll-margin-top values set on #projects in CSS (see
-      // the "Section headers" block) so this boundary lines up with
-      // exactly where a "Projects" nav click / scrollIntoView() lands.
       var margin = window.innerWidth <= 640 ? 80 : 40;
       return Math.max(0, projects.getBoundingClientRect().top + window.scrollY - margin);
     }
 
     function snapTo(id){
-      locked = true;
+      snapping = true;
       window.__scrollToSection(id);
-      clearTimeout(lockTimer);
-      lockTimer = setTimeout(function(){ locked = false; }, LOCK_MS);
+
+      // Unlock when the page actually stops moving (a few still frames),
+      // rather than after a fixed guess — a fast fling and a slow nudge
+      // take different amounts of time to settle. Safety timeout in case
+      // a scroll never fires (e.g. already at the target).
+      var lastY = null, still = 0;
+      function watch(){
+        if (!snapping) return;
+        var y = window.scrollY;
+        if (lastY !== null && Math.abs(y - lastY) < 1){
+          if (++still > 3){ snapping = false; cooldownUntil = Date.now() + 150; return; }
+        } else {
+          still = 0;
+        }
+        lastY = y;
+        requestAnimationFrame(watch);
+      }
+      requestAnimationFrame(watch);
+      setTimeout(function(){
+        if (snapping){ snapping = false; cooldownUntil = Date.now() + 150; }
+      }, 1200);
     }
 
     document.addEventListener('wheel', function(e){
-      if (window.innerWidth <= 760) return;
-      if (locked || !window.__scrollToSection) return;
+      if (window.innerWidth <= 760 || !window.__scrollToSection) return;
+
+      // Mid-snap: swallow the scroll entirely so manual wheeling can't
+      // fight the animation (this is the fix for the "acts weird / doesn't
+      // snap" behavior on fast scrolls).
+      if (snapping){ e.preventDefault(); return; }
+      if (Date.now() < cooldownUntil){ e.preventDefault(); return; }
 
       var y = window.scrollY;
       var pTop = projectsSnapTop();
@@ -2347,6 +2365,35 @@ public void ChangeState(EnemyState newState)
         snapTo('home');
       }
     }, { passive:false });
+
+    // Position fallback: a fast fling can outrun the wheel handler and
+    // leave you resting *inside* the hero region (between the very top and
+    // the Projects boundary) without a snap ever firing. Watch scroll
+    // position and, if we end up parked in that interior zone, snap out
+    // to whichever end matches the direction we were travelling.
+    var lastY = window.scrollY;
+    var ticking = false;
+    window.addEventListener('scroll', function(){
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(function(){
+        ticking = false;
+        var y = window.scrollY;
+        var dir = y - lastY;
+        lastY = y;
+
+        if (window.innerWidth <= 760 || !window.__scrollToSection) return;
+        if (snapping || Date.now() < cooldownUntil) return;
+
+        var pTop = projectsSnapTop();
+        // Only the interior counts — leave small deadzones at both ends so
+        // resting exactly at home (0) or at the Projects top doesn't fire.
+        if (y > 2 && y < pTop - 2){
+          if (dir < 0) snapTo('home');
+          else if (dir > 0) snapTo('projects');
+        }
+      });
+    }, { passive:true });
   })();
 </script>
 
