@@ -8,6 +8,23 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  /* Registering --nav-h makes it a genuinely animatable value. This is
+     load-bearing, not cosmetic: an UNregistered custom property changes
+     instantly and does NOT drive a CSS transition on properties that
+     read it (like the hero's min-height below). That instant jump, while
+     the nav's own height animated separately, is what desynced the two
+     and threw section-scroll targets off by exactly the big/small nav
+     size difference. Registered + transitioned here, --nav-h interpolates
+     frame by frame, and everything derived from it (nav height AND hero
+     min-height) moves in perfect lockstep. On a browser without @property
+     support it simply jumps instantly instead — still in lockstep, just
+     un-animated, so the alignment stays correct either way. */
+  @property --nav-h{
+    syntax: '<length>';
+    inherits: true;
+    initial-value: 92px;
+  }
+
   :root{
     --bg-void: #1b1b1c;
     --bg-panel: #232324;
@@ -26,6 +43,8 @@
     --mono: 'JetBrains Mono', monospace;
     --display: 'Space Grotesk', sans-serif;
     --body: 'Inter', sans-serif;
+    --nav-h: 92px; /* single source of truth for nav height; JS sets it to 92 (hero) or 52 (compact). Both the nav's own height and the hero's fill-height derive from this one value so they can never drift apart. */
+    transition: --nav-h 0.3s ease;
   }
 
   *{box-sizing:border-box;}
@@ -56,11 +75,17 @@
   .toolbar-inner{
     max-width:1360px; margin:0 auto; padding:0 24px;
     display:flex; align-items:center; justify-content:space-between;
-    height:52px;
+    /* Height comes straight from the single animated --nav-h variable, so
+       the nav and the hero (which subtracts the same variable) resize in
+       perfect lockstep. No `transition:height` here on purpose — --nav-h
+       is already the thing being animated, so the height just follows it
+       frame by frame. */
+    height:var(--nav-h);
   }
   .brand{
     font-family:var(--mono); font-size:13px; color:var(--text-lo);
     letter-spacing:0.02em;
+    transition:font-size 0.3s ease;
   }
   .brand strong{color:var(--text-hi); font-weight:600;}
   nav.tabs{display:flex; gap:2px;}
@@ -70,12 +95,67 @@
     color:var(--text-lo);
     padding:8px 12px;
     border-bottom:2px solid transparent;
+    transition:font-size 0.3s ease, padding 0.3s ease, color 0.15s ease;
   }
   nav.tabs a:hover{color:var(--text-hi); text-decoration:none;}
   nav.tabs a.active{color:var(--accent-blue); border-bottom-color:var(--accent-blue);}
 
+  /* Large "hero" state — active (via JS) only at the very top of the
+     page, decided by *action* (pressing Home, or the hero/projects
+     scroll-snap kicking in), with scroll position as fallback. This
+     class no longer sets the nav's height — that's driven entirely by
+     --nav-h (which JS sets to 92 or 52) so it stays locked to the hero's
+     fill-height math. This rule only handles the purely-visual font and
+     padding growth. Scoped to wider screens — the stacked mobile nav
+     below already handles small viewports. */
+  @media (min-width:641px){
+    header.toolbar.nav-hero .brand{font-size:16px;}
+    header.toolbar.nav-hero nav.tabs a{font-size:14.5px; padding:14px 20px; letter-spacing:0.07em;}
+  }
+
   /* ---------- Hero ---------- */
-  .hero{padding:72px 0 56px;}
+  .hero{
+    position:relative;
+    min-height:calc(100vh - var(--nav-h));
+    display:flex;
+    align-items:center;
+    overflow:hidden;
+    /* No `transition:min-height` here — --nav-h itself is the animated
+       value now, so this calc() re-evaluates smoothly every frame in
+       exact step with the nav's height. A separate transition here would
+       double up and could reintroduce the very desync it used to cause. */
+  }
+  /* Full-bleed video layer. The hero is now a top-level section (not
+     nested in the constrained .wrap), so this can simply be inset:0 —
+     no vw-breakout math needed like the expanded project cards use. */
+  .hero-bg{
+    position:absolute; inset:0;
+    z-index:0;
+    background:#141415;
+  }
+  .hero-bg-video{
+    position:absolute; inset:0;
+    width:100%; height:100%;
+    object-fit:cover;
+    opacity:0;
+    transition:opacity 1.4s ease;
+  }
+  .hero-bg-video.is-active{opacity:1;}
+  .hero-scrim{
+    position:absolute; inset:0;
+    background:
+      linear-gradient(180deg, rgba(20,20,21,0.62) 0%, rgba(20,20,21,0.5) 45%, rgba(20,20,21,0.88) 100%),
+      linear-gradient(90deg, rgba(20,20,21,0.55) 0%, rgba(20,20,21,0.1) 45%, rgba(20,20,21,0.1) 55%, rgba(20,20,21,0.55) 100%);
+  }
+  .hero-content{
+    position:relative; z-index:1;
+    padding:96px 24px 64px;
+    width:100%;
+  }
+  @media (prefers-reduced-motion: reduce){
+    .hero-bg-video{transition:none;}
+    :root{transition:none;} /* nav/hero resize snaps instead of animating — still perfectly in lockstep, just instant */
+  }
   .code-block{
     font-family:var(--mono); font-size:13px; color:var(--text-dim);
     line-height:1.9; margin-bottom:28px;
@@ -125,6 +205,23 @@
   /* ---------- Section headers ---------- */
   section{padding:48px 0;}
   section + section{border-top:1px solid var(--line);}
+  /* Every section other than the hero always ends up sitting under the
+     *compact* nav (only the hero ever triggers the bigger nav-hero
+     state), so this is one fixed value, applied the same way to all four
+     — rather than each nav click re-deriving "nav height + buffer" in
+     JS, which is what let Projects and the others drift out of sync
+     with each other and land at slightly different depths. A fixed
+     pixel number (not tied to the animating --nav-h variable) is used
+     deliberately, so the browser's own scrollIntoView()/anchor-jump
+     positioning can never be computed against a mid-transition value. */
+  #projects, #prototypes, #skills, #contact{
+    scroll-margin-top:40px;
+  }
+  @media (max-width:640px){
+    #projects, #prototypes, #skills, #contact{
+      scroll-margin-top:80px;
+    }
+  }
   .section-head{
     display:flex; align-items:baseline; gap:12px;
     margin-bottom:28px;
@@ -423,7 +520,8 @@
     border:1px solid var(--line-soft);
     background:#2c2c2f;
     margin:6px 0;
-    transition:background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    transition:background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease,
+      padding 0.15s ease, font-size 0.15s ease, gap 0.15s ease, margin 0.15s ease;
   }
   details.system summary:hover{
     background-color:#38383c;
@@ -449,6 +547,31 @@
     flex:0 0 auto;
   }
   details.system summary .kind-icon svg{width:18px; height:18px; display:block;}
+
+  /* Once one foldout in a card is open, the *other*, closed foldout
+     headers shrink so they stop eating vertical space next to the open
+     one. Scoped to :has(details.system[open]) so this only kicks in
+     when something is actually open — with everything closed the card
+     looks exactly like it always has. The .panel prefix keeps this more
+     specific than the .panel.expanded font-size rules further down.
+     Wrapped to min-width:761px to match the JS focus-mode breakpoint —
+     on mobile there's no separate "focus mode" card to make room for,
+     so foldout headers stay full-size there. */
+  @media (min-width:761px){
+    .panel .systems:has(details.system[open]) details.system:not([open]) summary{
+      padding:7px 10px;
+      font-size:12px;
+      gap:6px;
+      margin:4px 0;
+    }
+    .panel .systems:has(details.system[open]) details.system:not([open]) summary::before{
+      font-size:13px;
+      width:12px;
+    }
+    .panel .systems:has(details.system[open]) details.system:not([open]) summary .kind-icon svg{
+      width:14px; height:14px;
+    }
+  }
 
   details.system .system-body{
     padding:0 4px 14px 22px;
@@ -567,9 +690,21 @@
   </div>
 </header>
 
-<main class="wrap">
-
-  <section id="home" class="hero">
+<section id="home" class="hero">
+  <div class="hero-bg" aria-hidden="true">
+    <!-- Cross-fades between each project's own header clip. Only
+         projects that actually have a headliner video get one here —
+         add another <video> block (matching this pattern) once
+         Project Wall-E or a new project has its own clip. -->
+    <video class="hero-bg-video" muted loop playsinline preload="auto">
+      <source src="media/skyRoads-remake/headliner.mp4" type="video/mp4">
+    </video>
+    <video class="hero-bg-video" muted loop playsinline preload="auto">
+      <source src="media/blue-sword-ninja/headliner.mp4" type="video/mp4">
+    </video>
+    <div class="hero-scrim"></div>
+  </div>
+  <div class="hero-content wrap">
     <div class="code-block">
       <span class="comment">// TomerBenSimhon.cs</span><br>
       <span class="kw">using</span> UnityEngine;<br>
@@ -586,7 +721,10 @@
       <a class="btn" href="https://github.com/TomerBenSimhon" target="_blank" rel="noopener">GitHub ↗</a>
       <a class="btn" href="#contact">Contact ↗</a>
     </div>
-  </section>
+  </div>
+</section>
+
+<main class="wrap">
 
   <section id="projects">
     <div class="section-head">
@@ -1337,6 +1475,72 @@ public void ChangeState(EnemyState newState)
     var DURATION = 200; // ms — matches FLIP_DURATION below exactly, so opening a foldout and the surrounding card growing finish at the same moment instead of one lagging
     var registry = new Map();
 
+    // The open foldout jumps to the top of its list; closing it sends it
+    // back to its original spot. Only one item is ever out of place at a
+    // time (closeSiblings below enforces single-open), so restoring is
+    // just: replay the full original order via appendChild — appendChild
+    // on an already-present child *moves* it rather than duplicating it,
+    // so re-applying the whole list in the desired sequence reorders the
+    // container in one pass, regardless of whatever order it's in now.
+    // This is plain DOM reordering (not CSS `order`), so :last-child
+    // borders and any other DOM-order-dependent CSS stay correct too.
+    var systemsOriginalOrder = new Map(); // .systems container -> Element[]
+    document.querySelectorAll('.systems').forEach(function(container){
+      systemsOriginalOrder.set(container, Array.prototype.slice.call(container.children));
+    });
+    var REORDER_DURATION = DURATION;
+
+    function reorderTransform(el, fromTransform){
+      el.style.transition = 'none';
+      el.style.transform = fromTransform;
+      void el.offsetWidth;
+      el.style.transition = 'transform ' + REORDER_DURATION + 'ms ease-out';
+      el.style.transform = '';
+      var done = false;
+      function cleanup(){
+        if (done) return;
+        done = true;
+        el.style.transition = '';
+        el.style.transform = '';
+        el.removeEventListener('transitionend', cleanup);
+      }
+      el.addEventListener('transitionend', cleanup);
+      setTimeout(cleanup, REORDER_DURATION + 60);
+    }
+
+    // openEl (or null for "nothing open") decides the target order:
+    // the open item first, everything else in its original relative order.
+    function reorderSystems(container, openEl){
+      var original = systemsOriginalOrder.get(container);
+      if (!original) return;
+      var target = openEl
+        ? [openEl].concat(original.filter(function(el){ return el !== openEl; }))
+        : original.slice();
+
+      if (reduceMotion){
+        target.forEach(function(el){ container.appendChild(el); });
+        return;
+      }
+
+      var before = target.map(function(el){ return el.getBoundingClientRect(); });
+      target.forEach(function(el){ container.appendChild(el); });
+      target.forEach(function(el, i){
+        var last = el.getBoundingClientRect();
+        var dy = before[i].top - last.top;
+        if (Math.abs(dy) < 1) return;
+        reorderTransform(el, 'translate(0,' + dy + 'px)');
+      });
+    }
+
+    // Instant, unanimated version — used for the panel-focus-mode's
+    // instant hand-off between cards, where everything else also snaps
+    // immediately rather than easing.
+    function reorderSystemsInstant(container){
+      var original = systemsOriginalOrder.get(container);
+      if (!original) return;
+      original.forEach(function(el){ container.appendChild(el); });
+    }
+
     function Accordion(el){
       this.el = el;
       this.summary = el.querySelector('summary');
@@ -1351,8 +1555,16 @@ public void ChangeState(EnemyState newState)
     Accordion.prototype.onClick = function(e){
       e.preventDefault();
 
+      // Reordering (and the closed-header shrink handled purely in CSS)
+      // is a "focus mode" companion behavior — skip it below the same
+      // 760px breakpoint where focus mode itself doesn't apply, so
+      // mobile foldouts just open in place, in their normal order.
+      var willOpen = this.isClosing || !this.el.open;
+      if (window.innerWidth > 760){
+        reorderSystems(this.el.parentNode, willOpen ? this.el : null);
+      }
+
       if (reduceMotion){
-        var willOpen = !this.el.open;
         this.el.open = willOpen;
         this.el.dispatchEvent(new Event('toggle'));
         if (willOpen) closeSiblings(this.el);
@@ -1449,6 +1661,7 @@ public void ChangeState(EnemyState newState)
       registry.set(el, new Accordion(el));
     });
     window.__accordionRegistry = registry;
+    window.__reorderSystemsInstant = reorderSystemsInstant;
 
     // Safety net: if the viewport changes (like a phone rotating between
     // portrait and landscape, which is exactly when our clip-rows switch
@@ -1597,6 +1810,7 @@ public void ChangeState(EnemyState newState)
       if (!body || detailsEls.length === 0) return;
 
       var revertTimer = null;
+      var systemsContainer = panel.querySelector('.systems');
       var isExpanded = false;
       var scrollRef = null;
       var suppressScrollCheckUntil = 0;
@@ -1618,6 +1832,7 @@ public void ChangeState(EnemyState newState)
           detailsEls.forEach(function(d){
             d.open = false;
           });
+          if (systemsContainer && window.__reorderSystemsInstant) window.__reorderSystemsInstant(systemsContainer);
           panel.style.transition = 'none';
           panel.style.transform = '';
           panel.classList.remove('expanded');
@@ -1668,6 +1883,7 @@ public void ChangeState(EnemyState newState)
           var acc = reg && reg.get(d);
           if (acc) acc.shrink(); else d.open = false;
         });
+        if (systemsContainer && window.__reorderSystemsInstant) window.__reorderSystemsInstant(systemsContainer);
       }
 
       function revert(){
@@ -1732,6 +1948,38 @@ public void ChangeState(EnemyState newState)
   })();
 
 
+  // Shared helper: scroll a section into view leaving room for the sticky
+  // nav, independent of whatever size the nav currently happens to be.
+  // Used both by the nav tab clicks below and by the hero/projects
+  // wheel-snap further down, so a click from the hero (nav big) and a
+  // click from Skills (nav compact) land in exactly the same spot.
+  //
+  // Positioning itself is delegated to the browser's own scrollIntoView()
+  // plus each section's scroll-margin-top (see the CSS "Section headers"
+  // block) — a single shared value the browser applies natively, rather
+  // than this script re-deriving "nav height + buffer" per click, which
+  // is what let different tabs drift out of sync with each other and
+  // land at inconsistent depths.
+  (function(){
+    function scrollToSection(id){
+      var el = document.getElementById(id);
+      if (!el) return;
+
+      // Set (and lock) the destination's nav size immediately — before
+      // this action's own scroll even starts — and hold it there so the
+      // position-based fallback further down can't flip it back mid-
+      // animation.
+      if (window.__setNavHero) window.__setNavHero(id === 'home', { lock:true });
+
+      if (id === 'home'){
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    window.__scrollToSection = scrollToSection;
+  })();
+
   // Keep the toolbar tab highlighted for whichever section is on screen,
   // and update it instantly on click too (no waiting for scroll to catch up).
   (function(){
@@ -1775,15 +2023,21 @@ public void ChangeState(EnemyState newState)
       setActive(current);
     }
 
-    // Clicking a tab sets it active immediately and ignores scroll-tracking
-    // until the smooth-scroll settles, so it doesn't flicker through
-    // whatever sections it passes on the way there.
+    // Clicking a tab sets it active immediately, scrolls there using the
+    // shared helper above (not the browser's default anchor jump, which
+    // is what let the nav's current size affect the landing spot), and
+    // ignores scroll-tracking until the smooth-scroll settles so it
+    // doesn't flicker through whatever sections it passes on the way.
     tabs.forEach(function(tab){
-      tab.addEventListener('click', function(){
-        setActive(tab.getAttribute('href').slice(1));
+      tab.addEventListener('click', function(e){
+        e.preventDefault();
+        var id = tab.getAttribute('href').slice(1);
+        setActive(id);
         suppressScroll = true;
         clearTimeout(suppressTimer);
         suppressTimer = setTimeout(function(){ suppressScroll = false; }, 800);
+        window.__scrollToSection(id);
+        if (window.history && history.pushState) history.pushState(null, '', '#' + id);
       });
     });
 
@@ -1942,6 +2196,157 @@ public void ChangeState(EnemyState newState)
     document.addEventListener('keydown', function(e){
       if (e.key === 'Escape' && modal.classList.contains('open')) closeVideo();
     });
+  })();
+
+  // Hero background: cross-fades between each project's header clip on a
+  // timer. The first clip plays immediately; if there's more than one,
+  // it hands off to the next every CYCLE_MS, fading the incoming clip in
+  // over CROSSFADE_MS while the outgoing one fades out underneath it.
+  // Neither clip's currentTime is ever reset — pausing just freezes it
+  // in place, so with only a couple of clips in rotation looping back
+  // around doesn't feel like restarting from scratch every time.
+  (function(){
+    var videos = Array.prototype.slice.call(document.querySelectorAll('.hero-bg-video'));
+    if (videos.length === 0) return;
+
+    videos[0].classList.add('is-active');
+    var p0 = videos[0].play();
+    if (p0 && p0.catch) p0.catch(function(){ /* ignore — browser will retry on visibility */ });
+
+    if (videos.length < 2) return;
+
+    var current = 0;
+    var CYCLE_MS = 6500;
+    var CROSSFADE_MS = 1400;
+
+    setInterval(function(){
+      var next = (current + 1) % videos.length;
+      var outgoing = videos[current];
+      var incoming = videos[next];
+
+      var p = incoming.play();
+      if (p && p.catch) p.catch(function(){});
+      incoming.classList.add('is-active');
+      outgoing.classList.remove('is-active');
+
+      setTimeout(function(){ outgoing.pause(); }, CROSSFADE_MS);
+
+      current = next;
+    }, CYCLE_MS);
+  })();
+
+  // Nav sizing: big only at the very top of the page. Driven by *action*
+  // first — pressing Home, or the hero/projects scroll-snap kicking in —
+  // each of which locks the state immediately (before any scrolling has
+  // actually happened) and holds it for LOCK_MS so a scroll event mid-
+  // animation can't flip it back. Plain scroll position is only the
+  // fallback, for anything that isn't one of those explicit actions
+  // (direct #hash links, browser back/forward, keyboard scrolling,
+  // scrollbar dragging).
+  //
+  // Setting --nav-h here is what actually drives the nav's height AND the
+  // hero's fill-height (both read this one variable in CSS), so they can
+  // never drift apart. HERO_NAV_H / COMPACT_NAV_H mirror the two target
+  // sizes; the CSS @property registration on --nav-h is what lets the
+  // change between them animate rather than snap.
+  (function(){
+    var header = document.querySelector('header.toolbar');
+    if (!header) return;
+
+    var HERO_NAV_H = 92;
+    var COMPACT_NAV_H = 52;
+    var LOCK_MS = 800;
+
+    var isHero = null;
+    var locked = false;
+    var lockTimer = null;
+
+    function predictedHeight(big){
+      // Mobile stacks the nav to an auto height regardless of nav-hero
+      // (see the max-width:640px override further down), so there's no
+      // fixed target to set — measure the real height so the hero's
+      // fill-math still subtracts the right amount.
+      if (window.innerWidth <= 640) return header.offsetHeight;
+      return big ? HERO_NAV_H : COMPACT_NAV_H;
+    }
+
+    function setNavHero(big, opts){
+      opts = opts || {};
+      if (big !== isHero){
+        isHero = big;
+        header.classList.toggle('nav-hero', big);
+      }
+      document.documentElement.style.setProperty('--nav-h', predictedHeight(big) + 'px');
+      if (opts.lock){
+        locked = true;
+        clearTimeout(lockTimer);
+        lockTimer = setTimeout(function(){ locked = false; }, opts.lockMs || LOCK_MS);
+      }
+    }
+    window.__setNavHero = setNavHero;
+
+    function update(){
+      if (locked) return;
+      setNavHero(window.scrollY <= 4);
+    }
+
+    update();
+
+    var ticking = false;
+    window.addEventListener('scroll', function(){
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(function(){ update(); ticking = false; });
+    }, { passive:true });
+
+    window.addEventListener('resize', function(){ if (!locked) update(); }, { passive:true });
+  })();
+
+  // Hero ⇄ Projects scroll snap: while sitting in the hero, any downward
+  // scroll jumps straight to the top of Projects instead of slowly
+  // scrolling through the hero; scrolling up again from right at the top
+  // of Projects snaps straight back to the hero. This only engages right
+  // at that one boundary — the moment you're actually browsing inside
+  // Projects (or any section after it), scrolling is completely normal.
+  // Scoped to desktop, matching the other hero/nav-size behavior above.
+  (function(){
+    var projects = document.getElementById('projects');
+    if (!projects) return;
+
+    var LOCK_MS = 700;
+    var locked = false;
+    var lockTimer = null;
+
+    function projectsSnapTop(){
+      // Mirrors the scroll-margin-top values set on #projects in CSS (see
+      // the "Section headers" block) so this boundary lines up with
+      // exactly where a "Projects" nav click / scrollIntoView() lands.
+      var margin = window.innerWidth <= 640 ? 80 : 40;
+      return Math.max(0, projects.getBoundingClientRect().top + window.scrollY - margin);
+    }
+
+    function snapTo(id){
+      locked = true;
+      window.__scrollToSection(id);
+      clearTimeout(lockTimer);
+      lockTimer = setTimeout(function(){ locked = false; }, LOCK_MS);
+    }
+
+    document.addEventListener('wheel', function(e){
+      if (window.innerWidth <= 760) return;
+      if (locked || !window.__scrollToSection) return;
+
+      var y = window.scrollY;
+      var pTop = projectsSnapTop();
+
+      if (y < pTop - 2 && e.deltaY > 0){
+        e.preventDefault();
+        snapTo('projects');
+      } else if (y <= pTop + 2 && e.deltaY < 0){
+        e.preventDefault();
+        snapTo('home');
+      }
+    }, { passive:false });
   })();
 </script>
 
