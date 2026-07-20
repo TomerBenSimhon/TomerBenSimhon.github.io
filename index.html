@@ -695,12 +695,15 @@
     <!-- Cross-fades between each project's own header clip. Only
          projects that actually have a headliner video get one here —
          add another <video> block (matching this pattern) once
-         Project Wall-E or a new project has its own clip. -->
+         a new project has its own clip. -->
     <video class="hero-bg-video" muted loop playsinline preload="auto">
       <source src="media/skyRoads-remake/headliner.mp4" type="video/mp4">
     </video>
     <video class="hero-bg-video" muted loop playsinline preload="auto">
       <source src="media/blue-sword-ninja/headliner.mp4" type="video/mp4">
+    </video>
+    <video class="hero-bg-video" muted loop playsinline preload="auto">
+      <source src="media/wall-e/headliner.mp4" type="video/mp4">
     </video>
     <div class="hero-scrim"></div>
   </div>
@@ -1272,12 +1275,16 @@ public void ChangeState(EnemyState newState)
     <!-- PROJECT 3 -->
     <div class="panel" data-accent="wall-e">
       <div class="panel-head">
-        <span class="title"><span class="icon">⬡</span>ProjectWallE.cs</span>
+        <span class="title"><span class="icon">⬡</span>RoboDefense.cs</span>
         <span class="chip">3D Action Tower Defense</span>
       </div>
       <div class="panel-body">
         <div class="panel-media">
-          <div class="media-slot"><span>gameplay clip — coming soon</span></div>
+          <div class="media-slot">
+            <video autoplay muted loop playsinline preload="auto">
+              <source src="media/wall-e/headliner.mp4" type="video/mp4">
+            </video>
+          </div>
           <div class="fields">
             <div class="field-row"><span class="label">Genre</span><span class="value">3D Action Tower Defense</span></div>
             <div class="field-row"><span class="label">Engine</span><span class="value">Unity 6000.4.6f1</span></div>
@@ -1289,9 +1296,293 @@ public void ChangeState(EnemyState newState)
         </div>
         <div class="systems">
         <details class="system">
-          <summary><span class="kind-icon" title="Gameplay system"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>Dual Player Controller — Robot / Car</summary>
-          <div class="system-body">A robot that moves, jumps, and shoots, and can transform on the fly into a car for faster traversal. The car mode runs on wheel physics with real tire-traction calculations rather than a simple arcade approximation, so handling responds to speed and turning the way an actual vehicle would.</div>
+          <summary><span class="kind-icon" title="Gameplay system"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>Controller Switching — Robot / Car</summary>
+          <div class="system-body">
+            A cooldown-gated swap between two fully separate controller implementations, not a shared state machine or blended state — switching disables one controller's GameObject and enables the other's, so each mode's physics, input, and capabilities stay entirely self-contained behind a shared interface. Switching back to Robot is blocked with a headroom raycast: the low-profile car fits under overhangs the taller robot would clip straight into, so the switch simply fails until there's room.
+            <div class="system-clip">
+              <div class="clip-media">
+                <video muted loop playsinline preload="auto">
+                  <source src="media/wall-e/RobotCarSwitch.mp4" type="video/mp4">
+                </video>
+              </div>
+              <div class="caption">switching under a low overhang, then back in the open</div>
+            </div>
+            <div class="code-toggle-row">
+              <button class="code-toggle-btn" data-target="code-walle-switch" data-title="PlayerManager.cs — Controller Switching">View Code — Controller Switching</button>
+            </div>
+            <div class="code-source" id="code-walle-switch"><pre><code class="language-csharp">private void SwitchControllerEnum()
+{
+    if (!IsAlive) return;
+
+    if (_controllerTypeEnum == ControllerType.Car &amp;&amp; !CanSwitchToRobot())
+    {
+        OnControllerSwitchFailed?.Invoke();
+        return;
+    }
+
+    if (Time.time &lt; _switchTimer + switchCooldown) return;
+
+    _controllerTypeEnum = _controllerTypeEnum == ControllerType.Robot
+        ? ControllerType.Car
+        : ControllerType.Robot;
+}
+
+// Blocks switching back to Robot if there isn't enough headroom above —
+// the car fits under overhangs the taller robot would clip straight into.
+private bool CanSwitchToRobot()
+{
+    return !Physics.Raycast(transform.position, Vector3.up, robotHeightCheck, switchBlockLayer);
+}
+
+private void EnableController(ControllerType controllerType)
+{
+    bool isRobot = controllerType == ControllerType.Robot;
+
+    _currentController?.OnExit();
+    _currentController?.gameObject.SetActive(false);
+    _currentController = isRobot ? robotController : carController;
+    _currentController.gameObject.SetActive(true);
+    _currentController.OnEnter();
+    _currentController.CanMove = CanMove;
+    rigidBody.centerOfMass = _currentController.CenterOfMassOffset;
+
+    OnControllerChanged?.Invoke(controllerType);
+}</code></pre></div>
+          </div>
         </details>
+        <details class="system">
+          <summary><span class="kind-icon" title="Gameplay system"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>Car — Tire Physics &amp; Boost</summary>
+          <div class="system-body">
+            Each tire runs its own raycast suspension and grip curve, with steering and static tires tuned separately and grip further scaled by normal load and blended toward a dedicated handbrake value for drifting. In the air, the car forward-simulates its own trajectory a few steps ahead to predict the surface it's about to land on, torquing itself toward that orientation before impact instead of slamming down flat. Boost runs on a fuel system that recharges correctly across controller switches, so sitting in Robot mode for a while comes back to a partially refueled tank, not an empty one.
+            <div class="system-clip">
+              <div class="clip-media">
+                <video muted loop playsinline preload="auto">
+                  <source src="media/wall-e/CarController.mp4" type="video/mp4">
+                </video>
+              </div>
+              <div class="caption">climbing, launching, and self-leveling over rough terrain</div>
+            </div>
+            <div class="code-toggle-row">
+              <button class="code-toggle-btn" data-target="code-walle-friction" data-title="CarController.cs — Tire Friction">View Code — Tire Friction</button>
+              <button class="code-toggle-btn" data-target="code-walle-landing" data-title="CarController.cs — Predicted Landing Normal">View Code — Predicted Landing Normal</button>
+              <button class="code-toggle-btn" data-target="code-walle-boost" data-title="CarBoost.cs — Fuel Recharge">View Code — Boost Fuel Recharge</button>
+            </div>
+            <div class="code-source" id="code-walle-friction"><pre><code class="language-csharp">private void ApplyFrictionPerTiresType(Tire[] tires, AnimationCurve frictionCurve)
+{
+    foreach (Tire tire in tires)
+    {
+        if (!tire.isGroundedExtended)
+        {
+            tire.ResetGrip(frictionCurve);
+            continue;
+        }
+
+        // Lateral (sideways) velocity at the contact point — this is what
+        // friction fights. Longitudinal roll is left untouched.
+        Vector3 tireVel = _playerRb.GetPointVelocity(tire.tireTransform.position);
+        float steeringVel = Vector3.Dot(tire.tireTransform.right, tireVel);
+
+        // Grip factor stacks several modifiers: base slip curve, then the
+        // partial-ground/airborne factor, the high-speed slide factor, and
+        // finally a blend toward the low handbrake grip while braking.
+        tire.gripFactor = CalcCurrentTireGripFactor(tire, frictionCurve, tireVel);
+        tire.gripFactor *= _airborneFactor;
+        tire.gripFactor *= _slippingFactor;
+        tire.gripFactor = Mathf.Lerp(tire.gripFactor, settings.HandBrakeGrip, _handbrake01);
+
+        // Acceleration needed to cancel that lateral velocity this frame,
+        // scaled by grip. gripFactor = 1 kills all sideways slide; lower
+        // values let the tire wash out.
+        float desiredVelChange = -steeringVel * tire.gripFactor;
+        float desiredAccel = desiredVelChange / Time.fixedDeltaTime;
+
+        // While not handbraking, enforce a minimum bite so tires don't feel
+        // greasy at low grip — but never more than what exactly stops the
+        // slide, so it can't overshoot and snap the car the other way.
+        if (!_carInput.HandBreakHeld)
+        {
+            float accelSign = Mathf.Sign(-steeringVel);
+            float exactStopAccel = Mathf.Abs(steeringVel) / Time.fixedDeltaTime;
+            float accelMagnitude = Mathf.Max(Mathf.Abs(desiredAccel), settings.MinLateralFrictionAccel);
+            accelMagnitude = Mathf.Min(accelMagnitude, exactStopAccel);
+
+            desiredAccel = accelSign * accelMagnitude;
+        }
+
+        _playerRb.AddForceAtPosition(
+            tire.tireTransform.right * (_playerRb.mass / _allTires.Count * desiredAccel),
+            tire.tireTransform.position,
+            ForceMode.Force
+        );
+    }
+}
+
+// The base grip for one tire: how far sideways it's sliding (0..1) sampled
+// through the friction curve, scaled by a normal-load factor, then eased
+// toward its target so grip changes don't snap frame-to-frame (except on
+// the exact frame the tire lands, where it's applied instantly).
+private float CalcCurrentTireGripFactor(Tire tire, AnimationCurve frictionCurve, Vector3 tireVel)
+{
+    Vector3 carVel = Vector3.ProjectOnPlane(_playerRb.linearVelocity, _groundPlaneNormal);
+    if (carVel.magnitude &lt; 0.3f)
+        return frictionCurve.Evaluate(0f);
+
+    Vector3 tireVelAlongGround = Vector3.ProjectOnPlane(tireVel, tire.extendedGroundHit.normal);
+    tire.slippingAmount = Mathf.Clamp(
+        Vector3.Dot(tire.tireTransform.right, tireVelAlongGround.normalized), -1f, 1f);
+
+    float gripFactor = frictionCurve.Evaluate(Mathf.Abs(tire.slippingAmount));
+    gripFactor = Mathf.Clamp(gripFactor * GetNormalForceGripFactor(tire, tireVel.magnitude), frictionCurve.Evaluate(1f), 1);
+
+    bool hasLanded = tire.isGroundedExtended &amp;&amp; !tire.isGroundedLastFixedFrame;
+    tire.gripFactor = hasLanded ? gripFactor :
+        Mathf.MoveTowards(tire.gripFactor, gripFactor, 2f * Time.fixedDeltaTime);
+    return tire.gripFactor;
+}</code></pre></div>
+            <div class="code-source" id="code-walle-landing"><pre><code class="language-csharp">private void AirAlignTorque()
+{
+    Vector3 targetUp = GetPredictedLandingNormal();
+    Quaternion toTarget = Quaternion.FromToRotation(transform.up, targetUp);
+
+    toTarget.ToAngleAxis(out float angleDeg, out Vector3 axisWorld);
+    if (angleDeg &gt; 180f) angleDeg -= 360f;
+
+    Vector3 errorWorld = axisWorld * (angleDeg * Mathf.Deg2Rad);
+    Vector3 errorLocal = transform.InverseTransformDirection(errorWorld);
+    errorLocal.y = 0f; // keep yaw free for steering
+
+    Vector3 angVelLocal = transform.InverseTransformDirection(_playerRb.angularVelocity);
+    angVelLocal.y = 0f;
+
+    Vector3 torqueLocal = (errorLocal * settings.AirAlignmentStrength) - (angVelLocal * settings.AirAlignmentDamping);
+    _playerRb.AddTorque(transform.TransformDirection(torqueLocal), ForceMode.Acceleration);
+}
+
+// Forward-simulates gravity a few steps ahead to find the surface the car
+// is about to land on, so AirAlignTorque can start correcting toward it
+// before impact instead of reacting after touchdown. Cached for a few
+// fixed frames since raycasting every step for a value that barely
+// changes frame-to-frame is wasted work.
+private Vector3 GetPredictedLandingNormal()
+{
+    if (_landingNormalCounter > 0)
+    {
+        _landingNormalCounter--;
+        return _cachedLandingNormal;
+    }
+    _landingNormalCounter = LandingNormalUpdateInterval;
+
+    Vector3 pos = transform.position;
+    Vector3 vel = _playerRb.linearVelocity;
+    float dt = 0.1f;
+
+    for (int i = 0; i &lt; 50; i++)
+    {
+        float dv = -settings.TerminalVelocity - vel.y;
+        float gravityForce = Mathf.Clamp(dv * GravityControlFactor, -settings.GravityStrength, Mathf.Infinity);
+        vel.y += gravityForce * dt;
+
+        Vector3 nextPos = pos + vel * dt;
+        Vector3 step = nextPos - pos;
+
+        if (Physics.Raycast(pos, step.normalized, out RaycastHit hit, step.magnitude + 0.1f, _groundLayer, QueryTriggerInteraction.Ignore))
+        {
+            _cachedLandingNormal = hit.normal;
+            return _cachedLandingNormal;
+        }
+        pos = nextPos;
+    }
+
+    _cachedLandingNormal = _groundPlaneNormal;
+    return _cachedLandingNormal;
+}</code></pre></div>
+            <div class="code-source" id="code-walle-boost"><pre><code class="language-csharp">private void OnDisable()
+{
+    bool wasBoosting = _isBoosting;
+    _disableTime = Time.time;
+    _isBoosting = false;
+
+    if (!wasBoosting) return;
+    OnBoostEnd?.Invoke();
+}
+
+// Runs when switching back into the car. Recharges fuel for however long
+// the car sat disabled — driving the robot for a while shouldn't come back
+// to a still-empty tank, but it also shouldn't just refill instantly on
+// switch, so this reconstructs the recharge as if it had been running the
+// whole time (still respecting the normal post-boost cooldown window).
+private void OnEnable()
+{
+    float enableTime = Time.time;
+    float rechargeStartTime = _lastBoostTime + rechargeCooldown;
+    float effectiveRechargeStart = Mathf.Max(_disableTime, rechargeStartTime);
+    float rechargeDuration = enableTime - effectiveRechargeStart;
+
+    if (rechargeDuration > 0f)
+        AddFuel(rechargeDuration * rechargeRate);
+}</code></pre></div>
+          </div>
+        </details>
+        <details class="system">
+          <summary><span class="kind-icon" title="Gameplay system"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>Robot — Physics-Based Locomotion</summary>
+          <div class="system-body">
+            Movement is applied as a force at an offset point below center of mass rather than a direct velocity set, with a spring-damper suspension holding it at ride height and a slope-walkability check that switches to a slide state on anything too steep to stand on. Rotation is entirely torque-driven: an upright spring keeps it standing, and a separate camera-relative yaw torque turns it to face wherever the camera's looking, independent of movement direction — so it can strafe.
+            <div class="system-clip">
+              <div class="clip-media">
+                <video muted loop playsinline preload="auto">
+                  <source src="media/wall-e/RobotController.mp4" type="video/mp4">
+                </video>
+              </div>
+              <div class="caption">climbing slopes and canyon terrain</div>
+            </div>
+            <div class="code-toggle-row">
+              <button class="code-toggle-btn" data-target="code-walle-rotation" data-title="RobotController.cs — Upright &amp; Camera Torque">View Code — Upright &amp; Camera-Relative Torque</button>
+            </div>
+            <div class="code-source" id="code-walle-rotation"><pre><code class="language-csharp">private void UpdateRotation()
+{
+    ApplyUprightSpringTorque();
+    ApplyCameraYawTorqueIfValid();
+}
+
+// A spring-damper torque toward world-up: the cross product of current up
+// and world-up gives the correction axis, damped by tilt angular velocity
+// (GetTiltAngularVelocityWorld, omitted — just strips the yaw component)
+// so it settles instead of oscillating.
+private void ApplyUprightSpringTorque()
+{
+    Vector3 tiltAxisWorld = Vector3.Cross(_playerRb.transform.up, Vector3.up);
+    Vector3 tiltAngVelWorld = GetTiltAngularVelocityWorld();
+
+    Vector3 uprightTorque = (tiltAxisWorld * settings.UprightStrength) - (tiltAngVelWorld * settings.UprightDamping);
+    _playerRb.AddTorque(uprightTorque, ForceMode.Acceleration);
+}
+
+// Turns the robot to face the camera's flattened forward, independent of
+// which way it's actually moving — movement input and facing direction
+// are fully decoupled, so it can strafe.
+private void ApplyCameraYawTorqueIfValid()
+{
+    if (!TryGetFlattenedCameraForward(out Vector3 camForwardFlat)) return;
+
+    Vector3 forwardFlat = GetFlattenedForwardWorld();
+    float yawErrorRad = Vector3.SignedAngle(forwardFlat, camForwardFlat, Vector3.up) * Mathf.Deg2Rad;
+    float yawVelLocal = transform.InverseTransformDirection(_playerRb.angularVelocity).y;
+
+    float yawAccel = (yawErrorRad * settings.YawStrength) - (yawVelLocal * settings.YawDamping);
+    _playerRb.AddRelativeTorque(0f, yawAccel, 0f, ForceMode.Acceleration);
+}</code></pre></div>
+          </div>
+        </details>
+        </div>
+      </div>
+
+      <div class="code-modal-backdrop">
+        <div class="code-modal-box">
+          <div class="code-modal-head">
+            <span class="code-modal-title"></span>
+            <button class="code-modal-close" aria-label="Close">✕</button>
+          </div>
+          <div class="code-modal-body"><pre><code class="language-csharp"></code></pre></div>
         </div>
       </div>
     </div>
