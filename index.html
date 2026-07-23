@@ -910,7 +910,7 @@ void HandlePlatformExit()
         <details class="system">
           <summary><span class="kind-icon" title="Custom tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span>Prefab Brush Tool (Custom Editor Tool)</summary>
           <div class="system-body">
-            An in-editor level-painting tool I built to place grid-snapped prefabs directly in the Scene view, since the level's platforms follow a fixed grid. It has a custom editor window with a searchable, folder-organized prefab palette, and supports freehand brush and rectangle-fill tools, paint and erase modes, live ghost previews, click-drag continuous painting, press-R rotation, scroll-to-change-height, and full undo support. Snapping is normal-aware, so pieces can be painted onto the tops and sides of existing ones to build in 3D, not just on a flat plane.
+            An in-editor tool for painting grid-snapped prefabs straight into the Scene view. A searchable prefab palette, brush and rectangle-fill painting, erase mode, ghost previews, rotate and height controls, and full undo. Snapping is normal-aware, so pieces stick to the tops and sides of existing ones to build in 3D, not just a flat plane.
             <div class="system-clip-row">
               <div class="system-clip">
                 <div class="clip-media expandable" data-video="media/skyRoads-remake/PrefabBrush01.mp4" data-caption="Prefab Brush — brush painting, ghost preview + rotate">
@@ -997,7 +997,7 @@ public static class PrefabBrush
         </details>
         <details class="system">
           <summary><span class="kind-icon" title="Custom tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span>Event-Driven Effect System</summary>
-          <div class="system-body">A data-driven effect system that lets designers wire up reactive camera, particle, and sound effects entirely in the Inspector — no new code per effect. An Effects component on any object listens to a central bitflag event bus, and each configured spec declares which events trigger or cancel it, with an optional per-sender filter. Camera effects are the standout: a manager sums every active effect's FOV, position, and rotation deltas each frame and feeds one combined result into Cinemachine, so multiple shakes and pulses stack additively instead of overriding each other. Adding a whole new reactive effect is pure Inspector setup; only a brand-new kind of camera effect needs code, via a small interface.
+          <div class="system-body">A data-driven system that lets designers wire up reactive camera, particle, and sound effects entirely in the Inspector — no new code per effect. Components listen to a central event bus, and each effect declares which events trigger or cancel it. The standout: camera effects sum every active shake and pulse additively into one result fed to Cinemachine, so they stack instead of overriding each other.
             <div class="system-clip-row">
               <div class="system-clip">
                 <div class="clip-media expandable" data-video="media/skyRoads-remake/EffectSystem01.mp4" data-caption="Effect System — particle effects, triggered by stackable events">
@@ -1164,7 +1164,7 @@ private void LateUpdate()
         <details class="system">
           <summary><span class="kind-icon" title="Gameplay system"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>Player Controller</summary>
           <div class="system-body">
-            Fluid, responsive movement with variable jump height, adaptive gravity (falls are pulled down harder than rises for snappier arcs), a jump buffer window so inputs pressed just before landing still register, and coyote time so jumps still fire for a few frames after leaving a ledge.
+            Fluid, responsive movement: variable jump height, adaptive gravity (falls harder than rises for snappier arcs), a jump buffer so early presses still register, and coyote time so jumps fire just after leaving a ledge.
             <div class="system-clip">
               <div class="clip-media">
                 <video muted loop playsinline preload="auto">
@@ -1307,7 +1307,7 @@ public void ChangeState(EnemyState newState)
         <details class="system">
           <summary><span class="kind-icon" title="Gameplay system"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>Controller Switching — Robot / Car</summary>
           <div class="system-body">
-            A cooldown-gated swap between two fully separate controller implementations, not a shared state machine or blended state — switching disables one controller's GameObject and enables the other's, so each mode's physics, input, and capabilities stay entirely self-contained behind a shared interface. Switching back to Robot is blocked with a headroom raycast: the low-profile car fits under overhangs the taller robot would clip straight into, so the switch simply fails until there's room.
+            A cooldown-gated swap between two fully separate controllers — not a blended state. Switching disables one and enables the other, so each mode's physics and input stay self-contained behind a shared interface. Switching back to Robot is blocked by a headroom raycast: the low car fits under overhangs the taller robot would clip into, so the swap just fails until there's room.
             <div class="system-clip">
               <div class="clip-media">
                 <video muted loop playsinline preload="auto">
@@ -1362,7 +1362,7 @@ private void EnableController(ControllerType controllerType)
         <details class="system">
           <summary><span class="kind-icon" title="Gameplay system"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>Car — Tire Physics &amp; Boost</summary>
           <div class="system-body">
-            Each tire runs its own raycast suspension and grip curve, with steering and static tires tuned separately and grip further scaled by normal load and blended toward a dedicated handbrake value for drifting. In the air, the car forward-simulates its own trajectory a few steps ahead to predict the surface it's about to land on, torquing itself toward that orientation before impact instead of slamming down flat. Boost runs on a fuel system that recharges correctly across controller switches, so sitting in Robot mode for a while comes back to a partially refueled tank, not an empty one.
+            Each tire runs its own raycast suspension and grip curve, scaled by load and blended toward a handbrake value for drifting. In the air, the car forward-simulates its trajectory to predict the surface it's about to land on and torques itself level before impact. Boost runs on fuel that keeps recharging across controller switches, so you never come back to an empty tank.
             <div class="system-clip">
               <div class="clip-media">
                 <video muted loop playsinline preload="auto">
@@ -1535,7 +1535,7 @@ private void OnEnable()
         <details class="system">
           <summary><span class="kind-icon" title="Gameplay system"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>Robot — Physics-Based Locomotion</summary>
           <div class="system-body">
-            Movement is applied as a force at an offset point below center of mass rather than a direct velocity set, with a spring-damper suspension holding it at ride height and a slope-walkability check that switches to a slide state on anything too steep to stand on. Rotation is entirely torque-driven: an upright spring keeps it standing, and a separate camera-relative yaw torque turns it to face wherever the camera's looking, independent of movement direction — so it can strafe.
+            Movement is a force applied below the center of mass, with spring-damper suspension holding ride height and a slope check that drops into a slide when it's too steep to stand. Rotation is all torque: an upright spring keeps it standing, and a separate camera-relative yaw turns it to face the camera independent of movement — so it can strafe.
             <div class="system-clip">
               <div class="clip-media">
                 <video muted loop playsinline preload="auto">
@@ -1626,7 +1626,7 @@ private void ApplyCameraYawTorqueIfValid()
         <details class="system">
           <summary><span class="kind-icon" title="Gameplay system"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>Magnetic Push &amp; Pull — Modular Magnetizable System</summary>
           <div class="system-body">
-            The core mechanic: the left hand pushes, the right hand pulls. A SphereCast widened into a magnetic "field" reaches out from the hand and finds a target — but the player script never touches that object's physics directly. It just finds a shared <code>Magnetizable</code> component and fires its push or pull event, handing over the hand transform, the hit point, and the range. What that <em>means</em> physically is entirely up to whatever's on the other end: a free rigidbody gets dragged and can be caught into a hover in front of the camera, a rail-bound platform slides along its track, and a fixed magnetic wall reels the platform <em>you're</em> standing on toward it instead. Same input, completely different response per object — and a brand-new magnetizable type is pure Inspector wiring, with zero changes to the player.
+            The core mechanic: left hand pushes, right hand pulls. A SphereCast finds a target, then instead of moving it directly the player just fires a push/pull event on a shared <code>Magnetizable</code> component. Each object type responds its own way — a crate drags into a hover, a platform slides its track, a wall reels you toward it — so new magnetizable types are pure Inspector wiring, no player changes.
             <div class="system-clip">
               <div class="clip-media">
                 <video muted loop playsinline preload="auto">
@@ -1737,7 +1737,7 @@ private void HoverOnPlayer(Transform hand)
         <details class="system">
           <summary><span class="kind-icon" title="Gameplay system"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>Magnetic Jump — Self-Launch off Magnetic Surfaces</summary>
           <div class="system-body">
-            The magnet works both ways. Held in mid-air over a magnetic surface, the same repulsion that pushes objects away instead launches <em>you</em> upward. A downward SphereCast checks for a magnetic surface within range, and the closer it is, the harder the kick — force mapped by distance and squared, so a launch from right above a plate throws you far higher than one at the edge of range. It's gated behind a mid-air re-press of jump, so it reads as a deliberate second, magnetic boost rather than a free hover, and it feeds a separate "magnetic vertical velocity" channel that the controller lerps into — keeping normal gravity jumps and magnetic launches from fighting each other frame to frame.
+            The magnet works both ways: held in mid-air over a magnetic surface, the same repulsion launches <em>you</em> upward instead. A downward SphereCast measures the gap — the closer the surface, the harder the kick. It's gated behind a mid-air re-press of jump so it reads as a deliberate boost, feeding a separate velocity channel so it never fights normal gravity jumps.
             <div class="system-clip">
               <div class="clip-media">
                 <video muted loop playsinline preload="auto">
@@ -1784,7 +1784,7 @@ _verticalVelocity = _pushAndPull.PushingState != PushingState2.PushingPlayer
         <details class="system">
           <summary><span class="kind-icon" title="Gameplay system"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>Physics Character Controller — Moving-Platform Momentum</summary>
           <div class="system-body">
-            A CharacterController-driven locomotion built from scratch: camera-relative acceleration with separate ground/air drag and speed, sphere-cast grounding, and steep-wall projection so you slide off anything past the slope limit instead of sticking to it. The interesting part is how it rides moving platforms — rather than parenting the player to the platform (which jitters and fights rotation), it tracks the platform's velocity as its own channel, adds it on top of input velocity, then bleeds that inherited momentum away with air/ground drag only once you leave. So you carry a platform's speed cleanly into a jump and land naturally. As a bonus cross-system touch, standing on a magnet-driven platform flags it as non-magnetizable, so you can't push the very platform you're riding out from under yourself.
+            A CharacterController locomotion built from scratch — camera-relative movement, sphere-cast grounding, steep-wall sliding. The interesting part is moving platforms: instead of parenting (which jitters), it tracks the platform's velocity as its own channel and only bleeds it off once you leave, so you carry that speed cleanly into a jump. Standing on a magnet platform also disables its magnetism, so you can't shove the platform out from under yourself.
             <div class="system-clip">
               <div class="clip-media">
                 <video muted loop playsinline preload="auto">
@@ -1849,7 +1849,7 @@ private void CheckForMovablePlatform()
         <details class="system">
           <summary><span class="kind-icon" title="Gameplay system"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>Ragdoll Death &amp; Checkpoint Respawn</summary>
           <div class="system-body">
-            On death, the animated character hands off to a ragdoll. At startup it auto-collects every ragdoll-tagged collider and rigidbody in the hierarchy and disables them, so dying is cheap: switch off the animation rig and controller, switch on the ragdoll bodies, and pour the CharacterController's last velocity into them — so the corpse keeps the momentum that killed it instead of collapsing straight down. Checkpoints are set by simple trigger volumes, and the GameManager reloads the scene after a short beat and drops the player back at the last one. Loose magnetizable objects get their own respawn triggers, so a crate you knock into the void returns to its start position rather than staying lost.
+            On death the animated character hands off to a ragdoll, inheriting the CharacterController's last velocity so it keeps the momentum that killed it instead of dropping flat. Checkpoints are trigger volumes; the GameManager reloads the scene and respawns you at the last one. Loose magnetizable objects get their own respawn triggers, so a crate knocked into the void returns to its start.
             <div class="system-clip">
               <div class="clip-media">
                 <video muted loop playsinline preload="auto">
@@ -1858,62 +1858,6 @@ private void CheckForMovablePlatform()
               </div>
               <div class="caption">a hazard kills the player into a ragdoll, then respawns at the checkpoint</div>
             </div>
-            <div class="code-toggle-row">
-              <button class="code-toggle-btn" data-target="code-magnet-ragdoll" data-title="RagdollDeath.cs — Ragdoll Handoff">View Code — Ragdoll Handoff</button>
-              <button class="code-toggle-btn" data-target="code-magnet-checkpoint" data-title="Checkpoint &amp; GameManager — Respawn">View Code — Checkpoint &amp; Respawn</button>
-            </div>
-            <div class="code-source" id="code-magnet-ragdoll"><pre><code class="language-csharp">// Ragdoll parts are gathered and disabled at startup (GetRagdollParts,
-// omitted — it just collects every "Ragdoll"-tagged collider/rigidbody).
-// On death the animated rig and controller switch off, the ragdoll switches
-// on, and the CharacterController's velocity is poured into the bodies so
-// the corpse carries the momentum that killed it.
-void EnableRagdoll()
-{
-    Vector3 velocity = _characterController.velocity;
-
-    _characterController.enabled = false;
-    foreach (var c in _componentsToDisable) c.enabled = false;
-
-    foreach (var col in _colliders) col.enabled = true;
-    foreach (var rb in _rigidbodies)
-    {
-        rb.useGravity = true;
-        rb.linearVelocity = velocity;   // inherit the killing blow's speed
-        rb.angularVelocity = Vector3.zero;
-    }
-}
-
-public void Die()
-{
-    EnableRagdoll();
-    GameManager.Instance.ReloadScene(2f);   // a brief beat before respawn
-}</code></pre></div>
-            <div class="code-source" id="code-magnet-checkpoint"><pre><code class="language-csharp">// Checkpoint.cs — a trigger volume that records the last safe position.
-private void OnTriggerEnter(Collider other)
-{
-    if (other.CompareTag("Player"))
-        CheckpointManager.Instance.SetCheckpoint(transform.position);
-}
-
-// GameManager.cs — reload after a delay, then drop the player back at the
-// stored checkpoint once the fresh scene finishes loading.
-public void ReloadScene(float delay = 0f)
-{
-    StartCoroutine(ReloadSceneDelay(delay));
-}
-
-private IEnumerator ReloadSceneDelay(float delay)
-{
-    yield return new WaitForSeconds(delay);
-    Destroy(_player);
-    SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
-}
-
-private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
-{
-    if (_player != null)
-        _player.transform.position = CheckpointManager.Instance.CurrentCheckpoint;
-}</code></pre></div>
           </div>
         </details>
         </div>
