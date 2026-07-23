@@ -1602,20 +1602,319 @@ private void ApplyCameraYawTorqueIfValid()
     <!-- PROJECT 4 - PLACEHOLDER -->
     <div class="panel" data-accent="prototype">
       <div class="panel-head">
-        <span class="title"><span class="icon">◐</span>Untitled_Prototype.cs</span>
+        <span class="title"><span class="icon">◐</span>Magnet Adventure</span>
         <span class="chip amber">Prototype — Systems Complete</span>
       </div>
       <div class="panel-body">
         <div class="panel-media">
-          <div class="media-slot"><span>no art/level pass yet</span></div>
+          <div class="media-slot">
+            <video autoplay muted loop playsinline preload="auto">
+              <source src="media/MagnetAdventure/headliner.mp4" type="video/mp4">
+            </video>
+          </div>
           <div class="fields">
-            <div class="field-row"><span class="label">Status</span><span class="value">All mechanics &amp; code complete — shown here as a systems prototype, without a full art or level pass</span></div>
+            <div class="field-row"><span class="label">Genre</span><span class="value">3D Physics Puzzle-Platformer</span></div>
+            <div class="field-row"><span class="label">Engine</span><span class="value">Unity 6</span></div>
+            <div class="field-row"><span class="label">Role</span><span class="value">Solo developer — all systems &amp; code</span></div>
+            <div class="field-row"><span class="label">Status</span><span class="value">All mechanics &amp; code complete — shown as a systems prototype, without a full art or level pass</span></div>
+          </div>
+          <div class="panel-foot">
+            <a class="btn" href="https://github.com/TomerBenSimhon/IAC---Adventure-Game" target="_blank" rel="noopener">View Source ▸</a>
           </div>
         </div>
         <div class="systems">
         <details class="system">
-          <summary>Details coming soon</summary>
-          <div class="system-body">This one's mid-build in the write-up — send over the genre, the 2-3 systems you want to highlight, and a repo link, and this card gets filled in exactly like the others above.</div>
+          <summary><span class="kind-icon" title="Gameplay system"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>Magnetic Push &amp; Pull — Modular Magnetizable System</summary>
+          <div class="system-body">
+            The core mechanic: the left hand pushes, the right hand pulls. A SphereCast widened into a magnetic "field" reaches out from the hand and finds a target — but the player script never touches that object's physics directly. It just finds a shared <code>Magnetizable</code> component and fires its push or pull event, handing over the hand transform, the hit point, and the range. What that <em>means</em> physically is entirely up to whatever's on the other end: a free rigidbody gets dragged and can be caught into a hover in front of the camera, a rail-bound platform slides along its track, and a fixed magnetic wall reels the platform <em>you're</em> standing on toward it instead. Same input, completely different response per object — and a brand-new magnetizable type is pure Inspector wiring, with zero changes to the player.
+            <div class="system-clip">
+              <div class="clip-media">
+                <video muted loop playsinline preload="auto">
+                  <source src="media/MagnetAdventure/PushPull.mp4" type="video/mp4">
+                </video>
+              </div>
+              <div class="caption">pulling a crate into a hover, then pushing it away</div>
+            </div>
+            <div class="code-toggle-row">
+              <button class="code-toggle-btn" data-target="code-magnet-pull" data-title="PushAndPull2.cs — Targeting &amp; Event Dispatch">View Code — Targeting &amp; Event Dispatch</button>
+              <button class="code-toggle-btn" data-target="code-magnet-rb" data-title="MagnetizableRb.cs — Pull / Hover Response">View Code — Rigidbody Pull / Hover Response</button>
+            </div>
+            <div class="code-source" id="code-magnet-pull"><pre><code class="language-csharp">// A widened SphereCast from the hand acts as the magnetic "field". The
+// player never manipulates the object directly — it finds a Magnetizable
+// and fires its pull event. What that means physically is up to the
+// object on the other end.
+private void PullingLogic()
+{
+    Vector3 origin = _rightHandTransform.position - _cam.transform.forward * width;
+    bool isHit = Physics.SphereCast(origin, width, _cam.transform.forward,
+                                    out _pullingHit, pullDistance, _magnetizableLayer);
+
+    if (isHit)
+    {
+        // If the beam slid onto a different object this frame, release the
+        // previous one first — unless it's mid-hover and should be kept.
+        var hit = _pullingHit.collider.GetComponent&lt;Magnetizable&gt;();
+        if (_currentPulledMagnetizable != hit)
+        {
+            if (_currentPulledMagnetizable != null &amp;&amp; !_currentPulledMagnetizable.isHovering)
+            {
+                ReleasePull();
+                _currentPulledMagnetizable = hit;
+            }
+            else if (_currentPulledMagnetizable == null)
+                _currentPulledMagnetizable = hit;
+        }
+    }
+
+    bool isHover = _currentPulledMagnetizable != null &amp;&amp; _currentPulledMagnetizable.isHovering;
+
+    if (isHit || isHover)
+    {
+        PullingState = PullingState2.Pulling;
+        _currentPulledMagnetizable.Pulled(_rightHandTransform, _pullingHit.point, pullDistance, gameObject);
+    }
+    else if (_currentPulledMagnetizable != null)
+        ReleasePull();
+    else
+        PullingState = PullingState2.LookingForPull;
+}
+
+// Magnetizable.cs — the object exposes push/pull as Inspector-wired
+// UnityEvents. A plain crate, a rail platform, and a fixed wall each
+// subscribe a different response to the same call, with zero coupling
+// back to the player.
+public class Magnetizable : MonoBehaviour
+{
+    [field:SerializeField]
+    public UnityEvent&lt;Transform, Vector3, float, GameObject&gt; WhilePulled { get; private set; }
+
+    public void Pulled(Transform hand, Vector3 hitPoint, float range, GameObject player)
+    {
+        WhilePulled?.Invoke(hand, hitPoint, range, player);
+    }
+}</code></pre></div>
+            <div class="code-source" id="code-magnet-rb"><pre><code class="language-csharp">// One of several receivers wired to the pull event. Past a distance
+// threshold it drags the body toward the hand; once near enough it flips
+// into a hover that holds it floating in front of the camera.
+public void OnPulled(Transform hand, Vector3 hitPoint, float pullRange, GameObject player)
+{
+    if (currentMovableObjectState == MovableObjectState.Pushed) return;
+
+    float distance = Vector3.Distance(hand.position, hitPoint);
+    currentMovableObjectState =
+        distance &gt; hoverDistance &amp;&amp; currentMovableObjectState != MovableObjectState.Hover
+            ? MovableObjectState.Pulled
+            : MovableObjectState.Hover;
+
+    switch (currentMovableObjectState)
+    {
+        case MovableObjectState.Pulled: MagnetToPlayer(hand, hitPoint, pullRange); break;
+        case MovableObjectState.Hover:  _magnetizable.isHovering = true; HoverOnPlayer(hand); break;
+    }
+}
+
+private void MagnetToPlayer(Transform hand, Vector3 hitPoint, float pullRange)
+{
+    _rb.useGravity = false;
+    Vector3 pullDir = (hand.position - hitPoint).normalized;
+    float distance = Vector3.Distance(hand.position, hitPoint);
+    // Closer = stronger: force is mapped high→low across the range, then
+    // squared so the pull accelerates hard as the object closes in.
+    float force = CharacterControllerUtil.MapValue(distance, hoverDistance, pullRange, maxForce, minForce);
+    _rb.AddForceAtPosition(force * force / weight * pullDir, hitPoint, ForceMode.Acceleration);
+}
+
+// Hover: lock to a point floating in front of the camera by driving
+// velocity toward it, so the held object tracks wherever you look.
+private void HoverOnPlayer(Transform hand)
+{
+    _rb.useGravity = false;
+    Vector3 target = (hand.position + _camTransform.forward * hoverDistance) - transform.position;
+    _rb.linearVelocity = target * hoverSmoothness;
+}</code></pre></div>
+          </div>
+        </details>
+        <details class="system">
+          <summary><span class="kind-icon" title="Gameplay system"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>Magnetic Jump — Self-Launch off Magnetic Surfaces</summary>
+          <div class="system-body">
+            The magnet works both ways. Held in mid-air over a magnetic surface, the same repulsion that pushes objects away instead launches <em>you</em> upward. A downward SphereCast checks for a magnetic surface within range, and the closer it is, the harder the kick — force mapped by distance and squared, so a launch from right above a plate throws you far higher than one at the edge of range. It's gated behind a mid-air re-press of jump, so it reads as a deliberate second, magnetic boost rather than a free hover, and it feeds a separate "magnetic vertical velocity" channel that the controller lerps into — keeping normal gravity jumps and magnetic launches from fighting each other frame to frame.
+            <div class="system-clip">
+              <div class="clip-media">
+                <video muted loop playsinline preload="auto">
+                  <source src="media/MagnetAdventure/MagnetJump.mp4" type="video/mp4">
+                </video>
+              </div>
+              <div class="caption">re-pressing jump over a magnetic plate to launch upward</div>
+            </div>
+            <div class="code-toggle-row">
+              <button class="code-toggle-btn" data-target="code-magnet-jump" data-title="PushPlayer.cs — Magnetic Jump">View Code — Magnetic Jump</button>
+            </div>
+            <div class="code-source" id="code-magnet-jump"><pre><code class="language-csharp">// Triggered by a mid-air re-press of jump (jumpCount >= 1), so it reads
+// as a deliberate magnetic boost, not a free hover. A downward SphereCast
+// looks for a magnetic surface within range...
+private void MagnetJump()
+{
+    if (_pushAndPull.PushingState is PushingState2.Pushing or PushingState2.LookingForPush) return;
+
+    Vector3 origin = transform.position + Vector3.up * (width + 0.1f);
+    if (Physics.SphereCast(origin, width, Vector3.down, out RaycastHit hit, playerPushDistance, magneticJumpLayer))
+        _pushAndPull.ChangePushingState(PushingState2.PushingPlayer);
+    else
+        _pushAndPull.ChangePushingState(PushingState2.LookingForPushPlayer);
+
+    if (_pushAndPull.PushingState == PushingState2.PushingPlayer)
+    {
+        // ...the nearer the surface, the stronger the repulsion. Mapped
+        // close→far and squared, so a launch from right above the plate
+        // kicks far harder than one from the edge of range.
+        float distance = Vector3.Distance(transform.position, hit.point);
+        float force = CharacterControllerUtil.MapValue(distance, 0, playerPushDistance, 5f, 0f);
+        _controller.AddMagneticVerticalVelocity(playerPushForce * force * force);
+    }
+}
+
+// PlayerController.cs — while launching, vertical velocity is lerped toward
+// the magnetic channel instead of just integrating gravity, so a magnetic
+// boost and a normal fall don't overwrite each other.
+_verticalVelocity = _pushAndPull.PushingState != PushingState2.PushingPlayer
+    ? _verticalVelocity - gravity * Time.deltaTime
+    : Mathf.Lerp(_verticalVelocity, _magneticVerticalVelocity, Time.deltaTime * 2f);</code></pre></div>
+          </div>
+        </details>
+        <details class="system">
+          <summary><span class="kind-icon" title="Gameplay system"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>Physics Character Controller — Moving-Platform Momentum</summary>
+          <div class="system-body">
+            A CharacterController-driven locomotion built from scratch: camera-relative acceleration with separate ground/air drag and speed, sphere-cast grounding, and steep-wall projection so you slide off anything past the slope limit instead of sticking to it. The interesting part is how it rides moving platforms — rather than parenting the player to the platform (which jitters and fights rotation), it tracks the platform's velocity as its own channel, adds it on top of input velocity, then bleeds that inherited momentum away with air/ground drag only once you leave. So you carry a platform's speed cleanly into a jump and land naturally. As a bonus cross-system touch, standing on a magnet-driven platform flags it as non-magnetizable, so you can't push the very platform you're riding out from under yourself.
+            <div class="system-clip">
+              <div class="clip-media">
+                <video muted loop playsinline preload="auto">
+                  <source src="media/MagnetAdventure/MovingPlatform.mp4" type="video/mp4">
+                </video>
+              </div>
+              <div class="caption">riding a magnet-driven platform and carrying its momentum into a jump</div>
+            </div>
+            <div class="code-toggle-row">
+              <button class="code-toggle-btn" data-target="code-magnet-platform" data-title="PlayerController.cs — Moving-Platform Velocity">View Code — Moving-Platform Velocity Inheritance</button>
+            </div>
+            <div class="code-source" id="code-magnet-platform"><pre><code class="language-csharp">// Moving platforms aren't parented to the player — that jitters and fights
+// rotation. Their velocity is carried as its own channel, added on top of
+// input velocity, and only bled off gradually once you leave, so momentum
+// transfers into a jump instead of vanishing.
+Vector3 moveDelta = lateralAcceleration * Time.deltaTime * moveDir;
+
+// Subtract last frame's platform velocity so it isn't counted twice.
+Vector3 newVelocity = _controller.velocity + moveDelta - _movingPlatformVelocity;
+
+CheckForMovablePlatform();
+_movingPlatformVelocity = CurrentMovablePlatform != null
+    ? Vector3.MoveTowards(_movingPlatformVelocity, CurrentMovablePlatform.Velocity, Time.deltaTime * 100f)
+    : isGrounded
+        ? Vector3.MoveTowards(_movingPlatformVelocity, Vector3.zero, drag * Time.deltaTime)
+        : Vector3.MoveTowards(_movingPlatformVelocity, Vector3.zero, inAirDrag * Time.deltaTime);
+
+// Clamp only the input-driven part, then add the platform channel back, so
+// standing still on a fast platform never gets clamped down to a crawl.
+newVelocity = Vector3.ClampMagnitude(new Vector3(newVelocity.x, 0f, newVelocity.z), _lerpedLateralSpeed);
+newVelocity.y += _verticalVelocity;
+Vector3 finalVelocity = newVelocity + _movingPlatformVelocity;
+
+_controller.Move(finalVelocity * Time.deltaTime);
+
+// Grounding check specific to platforms: a short downward SphereCast on the
+// platform layer. Entering one caches it (and flags it so it can't be
+// pushed/pulled while ridden); leaving clears it so the bleed-off kicks in.
+private void CheckForMovablePlatform()
+{
+    Vector3 origin = transform.position + Vector3.up * _controller.radius;
+    bool onPlatform = Physics.SphereCast(origin, _controller.radius, Vector3.down,
+                                         out RaycastHit hit, 0.2f, _movingPlatformLayer);
+
+    if (onPlatform &amp;&amp; _currentMovingPlatformObject != hit.collider.gameObject)
+    {
+        CurrentMovablePlatform = hit.transform.GetComponent&lt;MovablePlatform&gt;();
+        if (hit.transform.TryGetComponent(out Magnetizable m))
+            m.isPlayerOnMovablePlatform = true;
+        _currentMovingPlatformObject = hit.collider.gameObject;
+    }
+    else if (!onPlatform &amp;&amp; CurrentMovablePlatform != null)
+    {
+        if (CurrentMovablePlatform.TryGetComponent(out Magnetizable m))
+            m.isPlayerOnMovablePlatform = false;
+        CurrentMovablePlatform = null;
+        _currentMovingPlatformObject = null;
+    }
+}</code></pre></div>
+          </div>
+        </details>
+        <details class="system">
+          <summary><span class="kind-icon" title="Gameplay system"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>Ragdoll Death &amp; Checkpoint Respawn</summary>
+          <div class="system-body">
+            On death, the animated character hands off to a ragdoll. At startup it auto-collects every ragdoll-tagged collider and rigidbody in the hierarchy and disables them, so dying is cheap: switch off the animation rig and controller, switch on the ragdoll bodies, and pour the CharacterController's last velocity into them — so the corpse keeps the momentum that killed it instead of collapsing straight down. Checkpoints are set by simple trigger volumes, and the GameManager reloads the scene after a short beat and drops the player back at the last one. Loose magnetizable objects get their own respawn triggers, so a crate you knock into the void returns to its start position rather than staying lost.
+            <div class="system-clip">
+              <div class="clip-media">
+                <video muted loop playsinline preload="auto">
+                  <source src="media/MagnetAdventure/RagdollDeath.mp4" type="video/mp4">
+                </video>
+              </div>
+              <div class="caption">a hazard kills the player into a ragdoll, then respawns at the checkpoint</div>
+            </div>
+            <div class="code-toggle-row">
+              <button class="code-toggle-btn" data-target="code-magnet-ragdoll" data-title="RagdollDeath.cs — Ragdoll Handoff">View Code — Ragdoll Handoff</button>
+              <button class="code-toggle-btn" data-target="code-magnet-checkpoint" data-title="Checkpoint &amp; GameManager — Respawn">View Code — Checkpoint &amp; Respawn</button>
+            </div>
+            <div class="code-source" id="code-magnet-ragdoll"><pre><code class="language-csharp">// Ragdoll parts are gathered and disabled at startup (GetRagdollParts,
+// omitted — it just collects every "Ragdoll"-tagged collider/rigidbody).
+// On death the animated rig and controller switch off, the ragdoll switches
+// on, and the CharacterController's velocity is poured into the bodies so
+// the corpse carries the momentum that killed it.
+void EnableRagdoll()
+{
+    Vector3 velocity = _characterController.velocity;
+
+    _characterController.enabled = false;
+    foreach (var c in _componentsToDisable) c.enabled = false;
+
+    foreach (var col in _colliders) col.enabled = true;
+    foreach (var rb in _rigidbodies)
+    {
+        rb.useGravity = true;
+        rb.linearVelocity = velocity;   // inherit the killing blow's speed
+        rb.angularVelocity = Vector3.zero;
+    }
+}
+
+public void Die()
+{
+    EnableRagdoll();
+    GameManager.Instance.ReloadScene(2f);   // a brief beat before respawn
+}</code></pre></div>
+            <div class="code-source" id="code-magnet-checkpoint"><pre><code class="language-csharp">// Checkpoint.cs — a trigger volume that records the last safe position.
+private void OnTriggerEnter(Collider other)
+{
+    if (other.CompareTag("Player"))
+        CheckpointManager.Instance.SetCheckpoint(transform.position);
+}
+
+// GameManager.cs — reload after a delay, then drop the player back at the
+// stored checkpoint once the fresh scene finishes loading.
+public void ReloadScene(float delay = 0f)
+{
+    StartCoroutine(ReloadSceneDelay(delay));
+}
+
+private IEnumerator ReloadSceneDelay(float delay)
+{
+    yield return new WaitForSeconds(delay);
+    Destroy(_player);
+    SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+}
+
+private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+{
+    if (_player != null)
+        _player.transform.position = CheckpointManager.Instance.CurrentCheckpoint;
+}</code></pre></div>
+          </div>
         </details>
         </div>
       </div>
