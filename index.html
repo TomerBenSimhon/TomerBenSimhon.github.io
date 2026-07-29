@@ -2,10 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- viewport-fit=cover lets the dark page run under a notched phone's
+     rounded corners instead of sitting in letterbox bars; everything
+     that touches a screen edge (nav, .wrap, footer, modals) pads
+     itself with env(safe-area-inset-*) to stay clear of the cutouts. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#2d2d2f">
 <title>Tomer Ben Simhon — Unity Developer</title>
 <meta name="description" content="Unity / C# developer portfolio — player controllers, custom tools, and gameplay systems.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   /* Registering --nav-h makes it a genuinely animatable value. This is
@@ -48,7 +54,13 @@
   }
 
   *{box-sizing:border-box;}
-  html{-webkit-text-size-adjust:100%; text-size-adjust:100%; scroll-behavior:smooth;}
+  html{
+    -webkit-text-size-adjust:100%; text-size-adjust:100%; scroll-behavior:smooth;
+    /* The default grey flash on tap is the browser telling the visitor
+       "that was a link" — replaced with the site's own accent so it
+       reads as part of the design rather than an artifact. */
+    -webkit-tap-highlight-color:rgba(90,171,232,0.18);
+  }
   body{
     margin:0;
     background:var(--bg-void);
@@ -71,6 +83,11 @@
     position:sticky; top:0; z-index:50;
     background:var(--bg-panel-head);
     border-bottom:1px solid var(--line);
+    /* Keeps the bar out from under a notch/status bar now that
+       viewport-fit=cover is on. Resolves to 0 everywhere else, and
+       the JS that measures the nav reads offsetHeight, so the hero's
+       fill-math picks this up automatically. */
+    padding-top:env(safe-area-inset-top, 0px);
   }
   .toolbar-inner{
     max-width:1360px; margin:0 auto; padding:0 24px;
@@ -236,8 +253,12 @@
     scroll-margin-top:40px;
   }
   @media (max-width:640px){
+    /* Mirrors the compact single-row mobile nav further down (48px)
+       plus a small gap, and the notch inset if there is one. The old
+       80px was sized for the nav when it still wrapped onto two
+       lines, so section tops landed with a visible dead band. */
     #projects, #prototypes, #skills, #contact{
-      scroll-margin-top:80px;
+      scroll-margin-top:calc(56px + env(safe-area-inset-top, 0px));
     }
   }
   .section-head{
@@ -482,6 +503,18 @@
     background:var(--bg-panel-head);
   }
   .code-modal-title{font-family:var(--mono); font-size:13px; color:var(--accent-blue);}
+  /* Soft-wrap switch for the snippet. Only shown on narrow screens
+     (see the mobile block) — on a desktop-width modal the lines fit
+     and there's nothing to toggle. */
+  .code-wrap-toggle{
+    display:none;
+    background:none; border:1px solid var(--line-soft); border-radius:2px;
+    color:var(--text-lo); font-family:var(--mono); font-size:11px; cursor:pointer;
+    letter-spacing:0.04em; text-transform:uppercase;
+    padding:5px 9px; margin-left:auto;
+    transition:color 0.15s ease, border-color 0.15s ease;
+  }
+  .code-wrap-toggle[aria-pressed="true"]{color:var(--accent-blue); border-color:var(--accent-blue);}
   .code-modal-close{
     background:none; border:1px solid var(--line-soft); border-radius:2px;
     color:var(--text-lo); font-family:var(--mono); font-size:14px; cursor:pointer;
@@ -490,7 +523,10 @@
   }
   .code-modal-close:hover{color:var(--text-hi); border-color:var(--text-lo);}
 
-  .code-modal-body{overflow:auto;}
+  /* `contain` stops a flick that reaches the end of the snippet from
+     chaining into the page behind the modal (and, on iOS, from
+     triggering pull-to-refresh through it). */
+  .code-modal-body{overflow:auto; overscroll-behavior:contain;}
   .code-modal-body pre{
     margin:0; padding:16px 20px;
     font-family:var(--mono); font-size:13px; line-height:1.65; color:var(--text-hi);
@@ -658,30 +694,321 @@
     margin-top:36px; font-family:var(--mono); font-size:11.5px; color:var(--text-dim);
   }
 
+  /* ==================================================================
+     MOBILE / TOUCH
+     ------------------------------------------------------------------
+     Everything below re-shapes the desktop layout above for phones.
+     Four things drive all of it:
+
+       1. VERTICAL SPACE IS THE SCARCE RESOURCE. A 16:9 clip wants 56%
+          of the width in height, so on a portrait screen every clip is
+          expensive and anything decorative has to shrink or move.
+       2. READING ORDER. Stacking a two-column layout is not the same
+          as designing for one column — the metadata column that sat
+          politely *beside* the systems list ends up on top of it,
+          pushing the actual content off-screen.
+       3. NO HOVER, AND 44px TARGETS. Anything that only revealed
+          itself on :hover has to have a non-hover equivalent.
+       4. BYTES AND DECODERS. See the media-loading script near the
+          bottom of the page: 31 clips is ~72MB if they all preload,
+          and phones cap how many videos decode at once.
+     ================================================================== */
+
+  /* ---------- Mobile nav: one compact row, tabs scroll ---------- */
+  @media (max-width:640px){
+    /* The nav used to stack brand-over-tabs, which cost ~84px of a
+       ~640px viewport on every single screen, permanently. One row
+       with a horizontally scrollable tab strip costs 48px instead.
+       The strip is masked at both ends so it visibly continues past
+       the edge, and JS keeps the active tab scrolled into view. */
+    .toolbar-inner{
+      height:auto;
+      padding-left:max(14px, env(safe-area-inset-left));
+      padding-right:max(14px, env(safe-area-inset-right));
+      gap:10px;
+      align-items:stretch;
+    }
+    .brand{
+      font-size:11px; flex:0 0 auto;
+      display:flex; align-items:center; white-space:nowrap;
+    }
+    nav.tabs{
+      flex:1 1 auto; min-width:0;
+      gap:0;
+      overflow-x:auto; overflow-y:hidden;
+      -webkit-overflow-scrolling:touch;
+      scrollbar-width:none;
+      /* Fade both ends rather than one: the strip can be scrolled
+         away from either edge, and a fade only on the right lies
+         about that once it's scrolled. */
+      -webkit-mask-image:linear-gradient(90deg, transparent 0, #000 10px, #000 calc(100% - 12px), transparent 100%);
+      mask-image:linear-gradient(90deg, transparent 0, #000 10px, #000 calc(100% - 12px), transparent 100%);
+    }
+    nav.tabs::-webkit-scrollbar{display:none;}
+    nav.tabs a{
+      flex:0 0 auto;
+      display:flex; align-items:center;
+      /* Fills the bar's full height, so the tap target is the whole
+         48px band and not just the 12px of text in the middle. */
+      min-height:48px;
+      padding:0 11px;
+      font-size:11.5px;
+    }
+    .field-row .label, .settings-row .label{flex:0 0 90px;}
+  }
+
+  /* ---------- Mobile hero: the clip becomes a banner ---------- */
+  @media (max-width:760px){
+    /* The clips are 16:9 and a portrait phone is not, so a
+       full-viewport-height hero filled with a contain-fit clip was
+       mostly filler: measured on a 390px-wide screen, 612px of
+       blurred backdrop framing a 219px-tall video. Rather than
+       cropping the gameplay to fit, the clip stops pretending to be
+       a background and becomes what it actually is — a 16:9 banner
+       across the top, with the intro text below it on flat
+       background. No letterbox, no blur pass, no second video
+       decoding, and the hero no longer costs a full screen-height
+       of scrolling before anything readable. */
+    .hero{
+      /* One value both the banner's height and the text's top
+         padding derive from, so they can't drift apart. 56.25vw is
+         exactly 16:9; the vh cap is for landscape phones where
+         56.25vw would be taller than the whole screen. */
+      --hero-band:max(170px, min(56.25vw, 46vh));
+      min-height:0;
+      display:block;
+    }
+    .hero-bg{
+      bottom:auto;
+      height:var(--hero-band);
+    }
+    /* cover, not contain: at exactly 56.25vw the two are identical
+       (the clip is 16:9), and in the vh-capped landscape case this
+       trims the sides instead of reintroducing bars. */
+    .hero-bg-video{object-fit:cover;}
+    /* The blurred oversized copy existed solely to fill the
+       letterbox that no longer exists. Hidden here, and the hero
+       cross-fade script skips it too (see videosOf() there) so it is
+       never even fetched — that alone is half the hero's video
+       weight, since each clip carried two copies of the same file. */
+    .hero-bg-video-blur{display:none;}
+    /* The old scrim darkened the whole hero because text sat on top
+       of the video. Now it only has one job: fade the bottom of the
+       banner into the page background so it doesn't end on a hard
+       line. */
+    .hero-scrim{
+      background:linear-gradient(180deg,
+        rgba(20,20,21,0.25) 0%,
+        rgba(20,20,21,0.10) 50%,
+        var(--bg-void) 100%);
+    }
+    .hero-content{
+      padding:calc(var(--hero-band) + 22px)
+              max(16px, env(safe-area-inset-right))
+              40px
+              max(16px, env(safe-area-inset-left));
+    }
+    /* The fake `using` block is flavor, and six lines of it at 1.9
+       line-height was ~130px of decoration above the name. Kept,
+       just tightened, with the two least-load-bearing lines hidden. */
+    .code-block{font-size:11.5px; line-height:1.65; margin-bottom:16px;}
+    .hero-code-extra{display:none;}
+    h1.name{font-size:clamp(1.85rem, 8.5vw, 2.6rem);}
+    p.role{font-size:13px; margin:0 0 14px;}
+    p.pitch{font-size:15px; margin:0 0 24px;}
+  }
+
+  /* ---------- Mobile spacing ---------- */
+  @media (max-width:640px){
+    .wrap{
+      padding-left:max(16px, env(safe-area-inset-left));
+      padding-right:max(16px, env(safe-area-inset-right));
+    }
+    section{padding:32px 0;}
+    .section-head{margin-bottom:18px;}
+    h2.section-title{font-size:1.25rem;}
+    .project-grid{gap:16px;}
+    .fields{padding:12px;}
+    .field-row{font-size:13px; padding:4px 0;}
+    .panel-foot{padding:12px;}
+    .panel-head{padding:10px 12px;}
+    .panel-head .title{font-size:13.5px;}
+    .settings-group{margin-bottom:20px;}
+    .settings-row{padding:9px 12px;}
+    .settings-row, .field-row{gap:12px;}
+    footer{padding:32px 0 calc(40px + env(safe-area-inset-bottom, 0px));}
+    .foot-note{margin-top:24px;}
+  }
+
+  /* ---------- Mobile project cards ---------- */
   @media (max-width:760px){
     .panel-body{flex-direction:column;}
-    .panel-media, .panel-body.shrink-media .panel-media{flex-basis:auto;}
-    .panel-media{border-right:none; border-bottom:1px solid var(--line);}
-  }
+    /* THE reading-order fix. Stacked, the "media + specs" column put
+       the genre/engine/role rows and the source-code link *between*
+       the header clip and the systems list — so the first foldout of
+       every card started 465-590px below the card's own top, and you
+       scrolled past the same three metadata rows four times over.
+       display:contents dissolves the wrapper so its three children
+       become direct flex items of the card body, and `order` can
+       then interleave them with the systems list: clip first (it's
+       the hook), systems second (it's the substance), specs and
+       source link underneath. */
+    .panel-media{display:contents;}
+    .panel-media .media-slot{order:1;}
+    .systems{order:2; padding:6px 12px 10px;}
+    .panel-media .fields{order:3; border-top:1px solid var(--line);}
+    .panel-media .panel-foot{order:4;}
 
-  @media (max-width:480px){
-    /* Switching to plain block stacking here, not flex-direction:column.
-       Safari has documented bugs resolving a flex item's height when it
-       also has overflow:hidden (needed here for the rounded corners) —
-       it can collapse toward zero where Chrome doesn't. Block-level
-       children have no such "automatic minimum size" ambiguity: each
-       clip just sizes from its own aspect-ratio content, full stop. */
-    .system-clip-row{display:block;}
-    .system-clip-row .system-clip{
-      margin-top:12px;
+    /* Focus mode — the card breaking out to 94vw and centering
+       itself — is desktop-only; the JS refuses to enter it below
+       760px because a phone is already showing the card as wide as
+       it can go. This is the safety net for *rotating into* mobile
+       while a card is already expanded, which would otherwise leave
+       a 94vw-wide card with a -47vw margin on a 390px screen. */
+    .panel.expanded{
+      width:auto; max-width:none; min-height:0;
+      left:auto; margin-left:0; box-shadow:none;
     }
-    .system-clip-row .system-clip:first-child{margin-top:0;}
+    .panel.expanded details.system summary{font-size:13.5px;}
+    .panel.expanded details.system .system-body{font-size:14px;}
+    .panel.expanded .field-row{font-size:13px;}
+    .panel.expanded .field-row .label{font-size:12.5px;}
+    .panel.expanded .system-body > .system-clip,
+    .panel.expanded .system-clip-row{max-width:none;}
+
+    details.system summary{
+      /* 48px minimum, and the padding grows with it — a 37px-tall
+         row is a coin-flip for a thumb. */
+      padding:13px 12px; min-height:48px; font-size:13.5px;
+      align-items:center;
+    }
+    /* The 22px left indent aligned the body under the caret, which
+       is worth ~6% of the readable width on a phone. */
+    details.system .system-body{padding:0 2px 14px 6px;}
+
+    .btn{padding:11px 14px; min-height:44px; font-size:13px;}
+
+    /* will-change:transform pins a compositor layer per video. On a
+       desktop GPU that's a cheap way to keep playback smooth; across
+       31 clips on a phone it's just held video memory. */
+    .media-slot video, .system-clip video{will-change:auto;}
   }
 
+  /* ---------- Phone-only: clip rows become a swipe carousel ---------- */
+  /* Deliberately 640 and not 760, unlike the card rules above. Between
+     641 and 760 a two-clip row still gives each clip ~320px, which is
+     perfectly readable — and that range includes narrow *desktop*
+     windows, where a horizontal scroller with no visible scrollbar and
+     no swipe gesture is a genuinely hidden second clip. Below 640 the
+     side-by-side clips are ~175px wide, too small to read a gameplay
+     clip in, while stacking them adds ~210px to a foldout that is
+     already the thing that's tiring to scroll. */
   @media (max-width:640px){
-    .toolbar-inner{height:auto; flex-direction:column; align-items:flex-start; padding:10px 24px;}
-    nav.tabs{padding-bottom:6px;}
-    .field-row .label, .settings-row .label{flex:0 0 90px;}
+    .system-clip-row{
+      display:flex;
+      /* Not `stretch`: a stretched flex item with overflow:hidden is
+         exactly the Safari height-resolution case the block-stacking
+         rule that used to live here was written to dodge. Each clip
+         sizes from its own aspect-ratio content instead. */
+      align-items:flex-start;
+      gap:10px; margin-top:12px;
+      overflow-x:auto; overflow-y:hidden;
+      scroll-snap-type:x mandatory;
+      -webkit-overflow-scrolling:touch;
+      scrollbar-width:none;
+    }
+    .system-clip-row::-webkit-scrollbar{display:none;}
+    /* 88%, not 100%, so the next clip visibly peeks in at the right
+       edge — that peek is the only thing telling a visitor there's a
+       second clip at all. */
+    .system-clip-row .system-clip,
+    .system-clip-row .system-clip.clip-wide,
+    .system-clip-row .system-clip.clip-narrow{
+      flex:0 0 88%;
+      margin-top:0;
+      scroll-snap-align:start;
+    }
+    /* A row with one clip has nothing to swipe to. */
+    .system-clip-row .system-clip:only-child{flex-basis:100%;}
+
+    /* Stacked full-width buttons: two of these sharing a row were both
+       narrow and short. */
+    .code-toggle-row{flex-direction:column; gap:8px;}
+    .code-toggle-btn{
+      width:100%; justify-content:center;
+      padding:12px; min-height:44px; font-size:12.5px;
+    }
+  }
+
+  /* ---------- Mobile code preview: full screen, wrapped ---------- */
+  @media (max-width:760px){
+    /* A centered 80vh box with 24px of backdrop padding around it
+       left roughly a postcard of actual code. On a phone the modal
+       takes the whole screen — that's the only way a 60-line snippet
+       is more than a peephole. */
+    .code-modal-backdrop{padding:0;}
+    .code-modal-box{
+      width:100%; max-width:none;
+      height:100vh; height:100dvh;
+      max-height:100vh; max-height:100dvh;
+      border:none; border-radius:0;
+      box-shadow:none;
+      padding-top:env(safe-area-inset-top, 0px);
+    }
+    .code-modal-head{padding:10px 12px;}
+    .code-modal-title{
+      font-size:11.5px; min-width:0;
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    }
+    .code-modal-close{padding:8px 12px; min-height:40px;}
+    .code-wrap-toggle{display:inline-flex; min-height:40px; align-items:center;}
+    .code-modal-body{-webkit-overflow-scrolling:touch;}
+    .code-modal-body pre{
+      padding:12px 12px calc(28px + env(safe-area-inset-bottom, 0px));
+      font-size:11px; line-height:1.6;
+      /* Two-axis scrolling to read one function is the worst part of
+         reading code on a phone, so lines soft-wrap by default here.
+         The Wrap button in the header turns it off for the cases
+         where the exact original formatting matters more. */
+      white-space:pre-wrap;
+      overflow-wrap:anywhere;
+    }
+    .code-modal-body.nowrap pre{white-space:pre; overflow-wrap:normal;}
+
+    /* ---------- Mobile video popup ---------- */
+    /* 32px of padding on each side of a 390px screen is 16% of the
+       width spent on nothing. The close button also moves inside the
+       frame — at top:-14px with the old padding it sat within a
+       thumb's width of the screen edge. */
+    .video-modal-backdrop{padding:12px;}
+    .video-modal-box{max-width:100%;}
+    .video-modal-box video{max-height:64vh; max-height:64dvh;}
+    .video-modal-close{
+      top:8px; right:8px; z-index:2;
+      width:40px; height:40px;
+      background:rgba(8,8,9,0.72);
+    }
+    .video-modal-caption{font-size:11.5px;}
+  }
+
+  /* ---------- Touch: no hover to rely on ---------- */
+  @media (hover:none){
+    /* Every :hover rule above is dead on a touchscreen, so the same
+       feedback is bound to :active instead — without this, tapping a
+       foldout or a button gives no acknowledgement at all until the
+       layout moves. */
+    .btn:active{border-color:var(--accent-blue); color:var(--accent-blue);}
+    details.system summary:active{
+      background-color:#38383c;
+      color:var(--accent-blue);
+      border-color:var(--accent-blue);
+    }
+    .code-toggle-btn:active{background-color:var(--accent-blue); color:var(--bg-void);}
+    .code-modal-close:active, .video-modal-close:active{color:var(--accent-blue);}
+    /* The expand affordance on tool clips was hover-revealed. On
+       touch it's simply always visible — it's the only cue that the
+       clip opens a bigger player. */
+    .clip-media.expandable .expand-hint{opacity:1;}
   }
 </style>
 </head>
@@ -709,26 +1036,26 @@
          cover-fit copy (fills the hero, no empty bars) plus the real
          contain-fit copy on top (never cropped). -->
     <div class="hero-clip">
-      <video class="hero-bg-video-blur" muted loop playsinline preload="auto" aria-hidden="true">
+      <video class="hero-bg-video-blur" muted loop playsinline preload="none" aria-hidden="true">
         <source src="media/skyRoads-remake/headliner.mp4" type="video/mp4">
       </video>
-      <video class="hero-bg-video" muted loop playsinline preload="auto">
+      <video class="hero-bg-video" muted loop playsinline preload="none">
         <source src="media/skyRoads-remake/headliner.mp4" type="video/mp4">
       </video>
     </div>
     <div class="hero-clip">
-      <video class="hero-bg-video-blur" muted loop playsinline preload="auto" aria-hidden="true">
+      <video class="hero-bg-video-blur" muted loop playsinline preload="none" aria-hidden="true">
         <source src="media/blue-sword-ninja/headliner.mp4" type="video/mp4">
       </video>
-      <video class="hero-bg-video" muted loop playsinline preload="auto">
+      <video class="hero-bg-video" muted loop playsinline preload="none">
         <source src="media/blue-sword-ninja/headliner.mp4" type="video/mp4">
       </video>
     </div>
     <div class="hero-clip">
-      <video class="hero-bg-video-blur" muted loop playsinline preload="auto" aria-hidden="true">
+      <video class="hero-bg-video-blur" muted loop playsinline preload="none" aria-hidden="true">
         <source src="media/wall-e/headliner.mp4" type="video/mp4">
       </video>
-      <video class="hero-bg-video" muted loop playsinline preload="auto">
+      <video class="hero-bg-video" muted loop playsinline preload="none">
         <source src="media/wall-e/headliner.mp4" type="video/mp4">
       </video>
     </div>
@@ -739,8 +1066,11 @@
       <span class="comment">// TomerBenSimhon.cs</span><br>
       <span class="kw">using</span> UnityEngine;<br>
       <span class="kw">using</span> PlayerController;<br>
-      <span class="kw">using</span> CombatSystems;<br>
-      <span class="kw">using</span> CustomEditorTools;<br><br>
+      <!-- Two of the five `using` lines are flavor rather than
+           information; hidden on phones (.hero-code-extra) to buy back
+           ~40px above the name, where vertical space is tightest. -->
+      <span class="hero-code-extra"><span class="kw">using</span> CombatSystems;<br>
+      <span class="kw">using</span> CustomEditorTools;<br></span><br>
       <span class="kw">public class</span> <span class="cl">Developer</span> : MonoBehaviour
     </div>
     <h1 class="name">Tomer Ben Simhon</h1>
@@ -773,7 +1103,7 @@
       <div class="panel-body">
         <div class="panel-media">
           <div class="media-slot">
-            <video autoplay muted loop playsinline preload="auto">
+            <video muted loop playsinline preload="none">
               <source src="media/skyRoads-remake/headliner.mp4" type="video/mp4">
             </video>
           </div>
@@ -794,14 +1124,14 @@
             <div class="system-clip-row">
               <div class="system-clip">
                 <div class="clip-media">
-                  <video muted loop playsinline preload="auto">
+                  <video muted loop playsinline preload="none">
                     <source src="media/skyRoads-remake/PlayerController01.mp4" type="video/mp4">
                   </video>
                 </div>
               </div>
               <div class="system-clip">
                 <div class="clip-media">
-                  <video muted loop playsinline preload="auto">
+                  <video muted loop playsinline preload="none">
                     <source src="media/skyRoads-remake/PlayerController02.mp4" type="video/mp4">
                   </video>
                 </div>
@@ -816,14 +1146,14 @@
             <div class="system-clip-row">
               <div class="system-clip">
                 <div class="clip-media">
-                  <video muted loop playsinline preload="auto">
+                  <video muted loop playsinline preload="none">
                     <source src="media/skyRoads-remake/Platforms01.mp4" type="video/mp4">
                   </video>
                 </div>
               </div>
               <div class="system-clip">
                 <div class="clip-media">
-                  <video muted loop playsinline preload="auto">
+                  <video muted loop playsinline preload="none">
                     <source src="media/skyRoads-remake/Platforms02.mp4" type="video/mp4">
                   </video>
                 </div>
@@ -915,7 +1245,7 @@ void HandlePlatformExit()
               <div class="system-clip">
                 <div class="clip-media expandable" data-video="media/skyRoads-remake/PrefabBrush01.mp4" data-caption="Prefab Brush — brush painting, ghost preview + rotate">
                   <span class="expand-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></span>
-                  <video muted loop playsinline preload="auto">
+                  <video muted loop playsinline preload="none">
                     <source src="media/skyRoads-remake/PrefabBrush01.mp4" type="video/mp4">
                   </video>
                 </div>
@@ -924,7 +1254,7 @@ void HandlePlatformExit()
               <div class="system-clip">
                 <div class="clip-media expandable" data-video="media/skyRoads-remake/PrefabBrush02.mp4" data-caption="Prefab Brush — rectangle fill + erase">
                   <span class="expand-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></span>
-                  <video muted loop playsinline preload="auto">
+                  <video muted loop playsinline preload="none">
                     <source src="media/skyRoads-remake/PrefabBrush02.mp4" type="video/mp4">
                   </video>
                 </div>
@@ -1002,7 +1332,7 @@ public static class PrefabBrush
               <div class="system-clip">
                 <div class="clip-media expandable" data-video="media/skyRoads-remake/EffectSystem01.mp4" data-caption="Effect System — particle effects, triggered by stackable events">
                   <span class="expand-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></span>
-                  <video muted loop playsinline preload="auto">
+                  <video muted loop playsinline preload="none">
                     <source src="media/skyRoads-remake/EffectSystem01.mp4" type="video/mp4">
                   </video>
                 </div>
@@ -1011,7 +1341,7 @@ public static class PrefabBrush
               <div class="system-clip">
                 <div class="clip-media expandable" data-video="media/skyRoads-remake/EffectSystem02.mp4" data-caption="Effect System — camera effects, additive across multiple effects">
                   <span class="expand-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></span>
-                  <video muted loop playsinline preload="auto">
+                  <video muted loop playsinline preload="none">
                     <source src="media/skyRoads-remake/EffectSystem02.mp4" type="video/mp4">
                   </video>
                 </div>
@@ -1147,7 +1477,7 @@ private void LateUpdate()
       <div class="panel-body">
         <div class="panel-media">
           <div class="media-slot">
-            <video autoplay muted loop playsinline preload="auto">
+            <video muted loop playsinline preload="none">
               <source src="media/blue-sword-ninja/headliner.mp4" type="video/mp4">
             </video>
           </div>
@@ -1167,7 +1497,7 @@ private void LateUpdate()
             Fluid, responsive movement: variable jump height, adaptive gravity (falls harder than rises for snappier arcs), a jump buffer so early presses still register, and coyote time so jumps fire just after leaving a ledge.
             <div class="system-clip">
               <div class="clip-media">
-                <video muted loop playsinline preload="auto">
+                <video muted loop playsinline preload="none">
                   <source src="media/blue-sword-ninja/jumping.mp4" type="video/mp4">
                 </video>
               </div>
@@ -1182,7 +1512,7 @@ private void LateUpdate()
             <div class="system-clip-row">
               <div class="system-clip">
                 <div class="clip-media">
-                  <video muted loop playsinline preload="auto">
+                  <video muted loop playsinline preload="none">
                     <source src="media/blue-sword-ninja/sword-platform.mp4" type="video/mp4">
                   </video>
                 </div>
@@ -1190,7 +1520,7 @@ private void LateUpdate()
               </div>
               <div class="system-clip">
                 <div class="clip-media">
-                  <video muted loop playsinline preload="auto">
+                  <video muted loop playsinline preload="none">
                     <source src="media/blue-sword-ninja/combat.mp4" type="video/mp4">
                   </video>
                 </div>
@@ -1206,7 +1536,7 @@ private void LateUpdate()
             <div class="system-clip-row">
               <div class="system-clip clip-wide">
                 <div class="clip-media">
-                  <video muted loop playsinline preload="auto">
+                  <video muted loop playsinline preload="none">
                     <source src="media/blue-sword-ninja/blob-gameplay.mp4" type="video/mp4">
                   </video>
                 </div>
@@ -1214,7 +1544,7 @@ private void LateUpdate()
               </div>
               <div class="system-clip clip-narrow">
                 <div class="clip-media">
-                  <video muted loop playsinline preload="auto">
+                  <video muted loop playsinline preload="none">
                     <source src="media/blue-sword-ninja/blob-inspector.mp4" type="video/mp4">
                   </video>
                 </div>
@@ -1290,7 +1620,7 @@ public void ChangeState(EnemyState newState)
       <div class="panel-body">
         <div class="panel-media">
           <div class="media-slot">
-            <video autoplay muted loop playsinline preload="auto">
+            <video muted loop playsinline preload="none">
               <source src="media/wall-e/headliner.mp4" type="video/mp4">
             </video>
           </div>
@@ -1310,7 +1640,7 @@ public void ChangeState(EnemyState newState)
             A cooldown-gated swap between two fully separate controllers — not a blended state. Switching disables one and enables the other, so each mode's physics and input stay self-contained behind a shared interface. Switching back to Robot is blocked by a headroom raycast: the low car fits under overhangs the taller robot would clip into, so the swap just fails until there's room.
             <div class="system-clip">
               <div class="clip-media">
-                <video muted loop playsinline preload="auto">
+                <video muted loop playsinline preload="none">
                   <source src="media/wall-e/RobotCarSwitch.mp4" type="video/mp4">
                 </video>
               </div>
@@ -1365,7 +1695,7 @@ private void EnableController(ControllerType controllerType)
             Each tire runs its own raycast suspension and grip curve, scaled by load and blended toward a handbrake value for drifting. In the air, the car forward-simulates its trajectory to predict the surface it's about to land on and torques itself level before impact. Boost runs on fuel that keeps recharging across controller switches, so you never come back to an empty tank.
             <div class="system-clip">
               <div class="clip-media">
-                <video muted loop playsinline preload="auto">
+                <video muted loop playsinline preload="none">
                   <source src="media/wall-e/CarController.mp4" type="video/mp4">
                 </video>
               </div>
@@ -1538,7 +1868,7 @@ private void OnEnable()
             Movement is a force applied below the center of mass, with spring-damper suspension holding ride height and a slope check that drops into a slide when it's too steep to stand. Rotation is all torque: an upright spring keeps it standing, and a separate camera-relative yaw turns it to face the camera independent of movement — so it can strafe.
             <div class="system-clip">
               <div class="clip-media">
-                <video muted loop playsinline preload="auto">
+                <video muted loop playsinline preload="none">
                   <source src="media/wall-e/RobotController.mp4" type="video/mp4">
                 </video>
               </div>
@@ -1608,7 +1938,7 @@ private void ApplyCameraYawTorqueIfValid()
       <div class="panel-body">
         <div class="panel-media">
           <div class="media-slot">
-            <video autoplay muted loop playsinline preload="auto">
+            <video muted loop playsinline preload="none">
               <source src="media/MagnetAdventure/headliner.mp4" type="video/mp4">
             </video>
           </div>
@@ -1629,7 +1959,7 @@ private void ApplyCameraYawTorqueIfValid()
             The core mechanic: left hand pushes, right hand pulls. A SphereCast finds a target, then instead of moving it directly the player just fires a push/pull event on a shared <code>Magnetizable</code> component. Each object type responds its own way — a crate drags into a hover, a platform slides its track, a wall reels you toward it — so new magnetizable types are pure Inspector wiring, no player changes.
             <div class="system-clip">
               <div class="clip-media">
-                <video muted loop playsinline preload="auto">
+                <video muted loop playsinline preload="none">
                   <source src="media/MagnetAdventure/PushPull.mp4" type="video/mp4">
                 </video>
               </div>
@@ -1740,7 +2070,7 @@ private void HoverOnPlayer(Transform hand)
             The magnet works both ways: held in mid-air over a magnetic surface, the same repulsion launches <em>you</em> upward instead. A downward SphereCast measures the gap — the closer the surface, the harder the kick. It's gated behind a mid-air re-press of jump so it reads as a deliberate boost, feeding a separate velocity channel so it never fights normal gravity jumps.
             <div class="system-clip">
               <div class="clip-media">
-                <video muted loop playsinline preload="auto">
+                <video muted loop playsinline preload="none">
                   <source src="media/MagnetAdventure/MagnetJump.mp4" type="video/mp4">
                 </video>
               </div>
@@ -1787,7 +2117,7 @@ _verticalVelocity = _pushAndPull.PushingState != PushingState2.PushingPlayer
             A CharacterController locomotion built from scratch — camera-relative movement, sphere-cast grounding, steep-wall sliding. The interesting part is moving platforms: instead of parenting (which jitters), it tracks the platform's velocity as its own channel and only bleeds it off once you leave, so you carry that speed cleanly into a jump. Standing on a magnet platform also disables its magnetism, so you can't shove the platform out from under yourself.
             <div class="system-clip">
               <div class="clip-media">
-                <video muted loop playsinline preload="auto">
+                <video muted loop playsinline preload="none">
                   <source src="media/MagnetAdventure/MovingPlatform.mp4" type="video/mp4">
                 </video>
               </div>
@@ -1852,7 +2182,7 @@ private void CheckForMovablePlatform()
             On death the animated character hands off to a ragdoll, inheriting the CharacterController's last velocity so it keeps the momentum that killed it instead of dropping flat. Checkpoints are trigger volumes; the GameManager reloads the scene and respawns you at the last one. Loose magnetizable objects get their own respawn triggers, so a crate knocked into the void returns to its start.
             <div class="system-clip">
               <div class="clip-media">
-                <video muted loop playsinline preload="auto">
+                <video muted loop playsinline preload="none">
                   <source src="media/MagnetAdventure/RagdollDeath.mp4" type="video/mp4">
                 </video>
               </div>
@@ -1923,7 +2253,7 @@ private void CheckForMovablePlatform()
 <div class="modal-backdrop video-modal-backdrop" id="video-modal">
   <div class="modal-box video-modal-box">
     <button class="video-modal-close" aria-label="Close">✕</button>
-    <video controls muted loop playsinline preload="auto"></video>
+    <video controls muted loop playsinline preload="none"></video>
     <div class="video-modal-caption"></div>
   </div>
 </div>
@@ -1935,6 +2265,10 @@ private void CheckForMovablePlatform()
   <div class="modal-box code-modal-box">
     <div class="code-modal-head">
       <span class="code-modal-title"></span>
+      <!-- Mobile-only (hidden by default in CSS): snippets soft-wrap on
+           narrow screens so there's no sideways scrolling, and this
+           turns wrapping off when the original line breaks matter. -->
+      <button class="code-wrap-toggle" aria-pressed="true">Wrap</button>
       <button class="code-modal-close" aria-label="Close">✕</button>
     </div>
     <div class="code-modal-body"><pre><code class="language-csharp"></code></pre></div>
@@ -1943,10 +2277,15 @@ private void CheckForMovablePlatform()
 
 <!-- Prism.js: lightweight syntax highlighting for the code preview
      modals. Custom colors below match the site's own palette instead of
-     using one of Prism's stock themes. -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-csharp.min.js"></script>
+     using one of Prism's stock themes.
+
+     Deferred, and each snippet is highlighted lazily the first time its
+     modal is opened (see the code-modal script) rather than all ~20 of
+     them at load — on a phone that was a chunk of main-thread parsing
+     for markup nobody had asked to see yet. -->
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-csharp.min.js"></script>
 
 <script>
   // Small helpers shared across the section scripts below (each
@@ -1962,8 +2301,19 @@ private void CheckForMovablePlatform()
   // relying on a comment to keep them numerically in sync.
   var FOLDOUT_ANIMATION_MS = 200;
 
+  // One place to ask "are we in the phone layout?", so the JS and the
+  // CSS @media (max-width:760px) blocks can't disagree about it.
+  function isMobileLayout(){
+    return window.innerWidth <= FOCUS_MODE_BREAKPOINT;
+  }
+
   function safePlay(video, resetTime){
-    if (resetTime) video.currentTime = 0;
+    // Every clip on the page is now preload="none" (see the media-loading
+    // script below), so a video that has never played has no data yet and
+    // readyState 0 — seeking that is either a no-op or, in older engines,
+    // an InvalidStateError. It also isn't needed: play() on an unloaded
+    // video starts at the beginning by definition.
+    if (resetTime && video.readyState > 0) video.currentTime = 0;
     var p = video.play();
     if (p && p.catch) p.catch(function(){ /* ignore — autoplay may be blocked; native controls let the user hit play where available */ });
   }
@@ -1983,54 +2333,139 @@ private void CheckForMovablePlatform()
 </script>
 
 <script>
-  // Highlight the hidden code-source blocks once, up front — the code
-  // modals just copy this already-highlighted markup in when opened,
-  // rather than re-running Prism on every open.
-  if (window.Prism){
-    document.querySelectorAll('.code-source code').forEach(function(el){
-      Prism.highlightElement(el);
-    });
-  }
-
-  // Header videos (the ones with the `autoplay` attribute, at the top of
-  // each project card) still start immediately, same as always. Foldout
-  // videos deliberately do NOT have that attribute — they only start
-  // playing once their foldout is actually opened, and get paused and
-  // rewound back to the start the moment it closes, so opening it again
-  // later always replays from frame one instead of resuming wherever it
-  // happened to be.
+  // ---------------------------------------------------------------------
+  // MEDIA LOADING
+  // ---------------------------------------------------------------------
+  // There are 31 clips on this page, ~72MB in total, and every one of
+  // them used to carry preload="auto" — so a visitor arriving on a phone
+  // asked the network for all 72MB before reading a single word, then
+  // handed the decoder four simultaneously-playing card headers on top of
+  // the hero's pair. Phones cap concurrent video decoders (iOS especially,
+  // where exceeding it silently kills playback on some of them), and
+  // that's before the data bill.
+  //
+  // So now: nothing preloads, and nothing plays unless it's on screen.
+  // Every <video> is preload="none" in the markup, the card headers no
+  // longer carry `autoplay` (an autoplay attribute would defeat the whole
+  // point — the browser starts fetching it immediately regardless of
+  // where it is on the page), and an IntersectionObserver plays them as
+  // they scroll into view and pauses them again on the way out. Playback
+  // itself is what triggers the download, so a clip's bytes are only
+  // spent once it's actually being watched.
+  //
+  // This is a win on desktop too, just a less urgent one.
   (function(){
-    function eachVideo(root, selector, fn){
-      root.querySelectorAll(selector).forEach(fn);
+    // The header clip at the top of each project card. These are the ones
+    // that used to autoplay unconditionally.
+    var headers = Array.from(document.querySelectorAll('.media-slot video'));
+    if (headers.length === 0) return;
+
+    if (!('IntersectionObserver' in window)){
+      // No IO (very old browser): fall back to the old behavior rather
+      // than leaving every card header as a frozen black rectangle.
+      headers.forEach(function(v){ safePlay(v, false); });
+      return;
     }
 
-    function playAllVideos(){
-      eachVideo(document, 'video[autoplay]', function(v){ safePlay(v, false); });
-    }
-    if (document.readyState === 'loading'){
-      document.addEventListener('DOMContentLoaded', function(){ playAllVideos(); });
-    } else {
-      playAllVideos();
+    function isOnScreen(v){
+      var r = v.getBoundingClientRect();
+      return r.bottom > 0 && r.top < window.innerHeight;
     }
 
-    function playFoldoutVideos(root){
-      eachVideo(root, 'video', function(v){ safePlay(v, true); });
-    }
-
-    function resetFoldoutVideos(root){
-      eachVideo(root, 'video', function(v){
-        v.pause();
-        v.currentTime = 0;
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        var v = entry.target;
+        if (entry.isIntersecting){
+          safePlay(v, false);
+        } else {
+          // Paused, not rewound: scrolling a card off screen and back
+          // shouldn't restart its clip from frame one every time. (The
+          // foldout clips further down do rewind — there, reopening a
+          // foldout is a deliberate "show me this again".)
+          v.pause();
+        }
       });
+    }, {
+      // A little margin so a clip is already running by the time it's
+      // properly in view, instead of visibly starting from black.
+      rootMargin: '150px 0px',
+      threshold: 0.01
+    });
+
+    headers.forEach(function(v){ io.observe(v); });
+
+    // The observer's first callback lands a frame or two after load, and
+    // on a deep-linked or restored-scroll-position arrival that's a
+    // visible black rectangle where a clip should already be running.
+    // Playing whatever is on screen right now closes that gap — and it
+    // means this doesn't depend on the observer for the *initial* state,
+    // only for the changes.
+    headers.forEach(function(v){ if (isOnScreen(v)) safePlay(v, false); });
+
+    // The clips inside the foldouts get the same off-screen pause, with
+    // one extra condition: whether they play at all is the foldout's
+    // decision (see the open/close script below), so a clip drifting
+    // into view must never start it — this only ever pauses a clip that
+    // scrolled away, and resumes one whose foldout is still open.
+    //
+    // On mobile this also does the swipe carousel's bookkeeping for
+    // free: a clip scrolled out of its row is clipped by that row's
+    // overflow, which the observer accounts for, so only the slide
+    // actually on screen is decoding.
+    var foldoutClips = Array.from(document.querySelectorAll('.system-clip video'));
+    var clipIo = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        var v = entry.target;
+        if (!entry.isIntersecting){
+          v.pause();
+          return;
+        }
+        var owner = v.closest('details.system');
+        if (owner && owner.open) safePlay(v, false);
+      });
+    }, { rootMargin:'150px 0px', threshold:0.01 });
+    foldoutClips.forEach(function(v){ clipIo.observe(v); });
+
+    // A backgrounded tab gets no scroll events, so the observers never
+    // fire and every playing clip keeps decoding behind whatever the
+    // visitor switched to. Cheap to hook, and it's the single biggest
+    // battery drain this page can cause on a phone.
+    document.addEventListener('visibilitychange', function(){
+      var all = headers.concat(foldoutClips);
+      if (document.hidden){
+        all.forEach(function(v){ v.pause(); });
+        return;
+      }
+      all.forEach(function(v){
+        if (!isOnScreen(v)) return;
+        var owner = v.closest('details.system');
+        if (owner && !owner.open) return; // its foldout is shut
+        safePlay(v, false);
+      });
+    });
+  })();
+
+  // Foldout videos only start once their foldout is actually opened, and
+  // get paused and rewound the moment it closes, so opening it again
+  // later always replays from frame one instead of resuming wherever it
+  // happened to be. With preload="none" this is also what fetches them
+  // in the first place — a card's clips cost nothing until a visitor
+  // opens the system they belong to.
+  (function(){
+    function eachVideo(root, fn){
+      root.querySelectorAll('video').forEach(fn);
     }
 
     document.querySelectorAll('details.system').forEach(function(d){
       var wasOpen = d.open;
       new MutationObserver(function(){
         if (d.open && !wasOpen){
-          playFoldoutVideos(d);
+          eachVideo(d, function(v){ safePlay(v, true); });
         } else if (!d.open && wasOpen){
-          resetFoldoutVideos(d);
+          eachVideo(d, function(v){
+            v.pause();
+            if (v.readyState > 0) v.currentTime = 0;
+          });
         }
         wasOpen = d.open;
       }).observe(d, { attributes:true, attributeFilter:['open'] });
@@ -2048,6 +2483,29 @@ private void CheckForMovablePlatform()
     var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     var DURATION = FOLDOUT_ANIMATION_MS;
     var registry = new Map();
+
+    // On a phone, tapping a foldout near the bottom of the screen opens
+    // its body entirely below the fold — and if it's a tall one, the
+    // summary you just tapped scrolls out of view as siblings above it
+    // close. Either way the visitor's next move is a scroll hunt for the
+    // thing they just asked to see. So: pull the opened summary up to
+    // just under the sticky nav, and the content starts right there.
+    //
+    // Desktop doesn't need this — focus mode already centers the whole
+    // card in the viewport when a foldout opens — so it's scoped to the
+    // same breakpoint where focus mode bows out.
+    function scrollFoldoutIntoView(details){
+      if (!isMobileLayout()) return;
+      var summary = details.querySelector('summary');
+      if (!summary) return;
+      var header = document.querySelector('header.toolbar');
+      var navH = header ? header.offsetHeight : 0;
+      var target = Math.max(0, summary.getBoundingClientRect().top + window.scrollY - navH - 8);
+      // Already sitting there (e.g. tapping a foldout that's already at
+      // the top): don't fire a pointless scroll animation.
+      if (Math.abs(window.scrollY - target) < 6) return;
+      window.scrollTo({ top: target, behavior: reduceMotion ? 'auto' : 'smooth' });
+    }
 
     // The open foldout jumps to the top of its list; closing it sends it
     // back to its original spot. Only one item is ever out of place at a
@@ -2155,7 +2613,10 @@ private void CheckForMovablePlatform()
       if (reduceMotion){
         this.el.open = willOpen;
         this.el.dispatchEvent(new Event('toggle'));
-        if (willOpen) closeSiblings(this.el);
+        if (willOpen){
+          closeSiblings(this.el);
+          scrollFoldoutIntoView(this.el);
+        }
         return;
       }
 
@@ -2233,6 +2694,17 @@ private void CheckForMovablePlatform()
       this.isExpanding = false;
       this.el.style.height = '';
       this.el.style.overflow = '';
+
+      if (open){
+        // One frame late on purpose. A sibling foldout is usually
+        // shrinking closed over the same duration, and it clears its own
+        // fixed height in its own onAnimationFinish — which may land
+        // after this one and move everything above us. Measuring after
+        // that settles is the difference between landing under the nav
+        // and landing a foldout's-worth off.
+        var el = this.el;
+        setTimeout(function(){ scrollFoldoutIntoView(el); }, 40);
+      }
     };
 
     function closeSiblings(el){
@@ -2404,6 +2876,25 @@ private void CheckForMovablePlatform()
       var suppressScrollCheckUntil = 0;
 
       var controller = {
+        // Rotating a phone (or resizing a window) down past the
+        // breakpoint while a card is expanded would otherwise leave a
+        // card still carrying .expanded — 94vw wide with a -47vw margin
+        // — on a screen the mobile CSS never intended it for. This drops
+        // focus mode without touching the visitor's open foldout: they
+        // rotated their phone, they didn't ask to close anything.
+        demoteToMobile: function(){
+          clearTimeout(revertTimer);
+          if (!isExpanded) return;
+          isExpanded = false;
+          scrollRef = null;
+          if (currentExpandedController === controller) currentExpandedController = null;
+          panel.style.transition = 'none';
+          panel.style.transform = '';
+          panel.classList.remove('expanded');
+          body.classList.remove('shrink-media');
+          void panel.offsetWidth;
+          panel.style.transition = '';
+        },
         instantRevert: function(){
           clearTimeout(revertTimer);
           if (!isExpanded) return;
@@ -2527,6 +3018,17 @@ private void CheckForMovablePlatform()
         if (panel.__checkScrollAway) panel.__checkScrollAway();
       });
     }), { passive:true });
+
+    // Debounced to settle once, like the other resize handlers here.
+    var breakpointTimer = null;
+    window.addEventListener('resize', function(){
+      clearTimeout(breakpointTimer);
+      breakpointTimer = setTimeout(function(){
+        if (isMobileLayout() && currentExpandedController){
+          currentExpandedController.demoteToMobile();
+        }
+      }, 150);
+    }, { passive:true });
   })();
 
 
@@ -2577,9 +3079,21 @@ private void CheckForMovablePlatform()
     function setActive(id){
       if (id === activeId) return;
       activeId = id;
+      var activeTab = null;
       tabs.forEach(function(tab){
-        tab.classList.toggle('active', tab.getAttribute('href') === '#' + id);
+        var isActive = tab.getAttribute('href') === '#' + id;
+        tab.classList.toggle('active', isActive);
+        if (isActive) activeTab = tab;
       });
+
+      // The mobile nav is a single horizontally-scrollable strip, so the
+      // current section's tab can be sitting off its edge — an underline
+      // nobody can see. `block:'nearest'` keeps this to the strip's own
+      // horizontal scroll and doesn't move the page. Only fires when the
+      // active section actually changed (the early return above).
+      if (activeTab && activeTab.scrollIntoView && window.innerWidth <= 640){
+        activeTab.scrollIntoView({ block:'nearest', inline:'center', behavior:'smooth' });
+      }
     }
 
     function isAtBottom(){
@@ -2677,11 +3191,25 @@ private void CheckForMovablePlatform()
     if (!modal) return;
 
     var titleEl = modal.querySelector('.code-modal-title');
+    var bodyEl = modal.querySelector('.code-modal-body');
     var codeEl = modal.querySelector('.code-modal-body code');
     var closeBtn = modal.querySelector('.code-modal-close');
+    var wrapBtn = modal.querySelector('.code-wrap-toggle');
+
+    // Highlight one snippet the first time it's opened, then remember
+    // that it's done. Prism used to run over all ~20 hidden snippets at
+    // load; on a phone that's a burst of main-thread work for markup the
+    // visitor may never open, competing with first paint.
+    function highlightOnce(sourceEl){
+      if (sourceEl.dataset.highlighted || !window.Prism) return;
+      var code = sourceEl.querySelector('code');
+      if (code) Prism.highlightElement(code);
+      sourceEl.dataset.highlighted = '1';
+    }
 
     function openModal(sourceEl, title, accent){
       if (accent) modal.style.setProperty('--accent-blue', accent);
+      highlightOnce(sourceEl);
       codeEl.innerHTML = sourceEl.innerHTML;
       titleEl.textContent = title || '';
       modal.classList.add('open');
@@ -2705,6 +3233,21 @@ private void CheckForMovablePlatform()
         openModal(source, btn.getAttribute('data-title'), getPanelAccent(btn.closest('.panel')));
       });
     });
+
+    // Wrap toggle (mobile only — the button is display:none above 760px).
+    // Snippets soft-wrap by default there so reading one function doesn't
+    // mean scrolling in two directions; this turns it off for when the
+    // original line breaks are the point.
+    if (wrapBtn){
+      wrapBtn.addEventListener('click', function(){
+        var nowWrapping = bodyEl.classList.toggle('nowrap') === false;
+        wrapBtn.setAttribute('aria-pressed', String(nowWrapping));
+        // Back to the top of the snippet: after switching modes the old
+        // scroll offset points at a different line than it did before.
+        bodyEl.scrollTop = 0;
+        bodyEl.scrollLeft = 0;
+      });
+    }
 
     closeBtn.addEventListener('click', closeModal);
     modal.addEventListener('click', function(e){
@@ -2778,25 +3321,62 @@ private void CheckForMovablePlatform()
     var clips = Array.from(document.querySelectorAll('.hero-clip'));
     if (clips.length === 0) return;
 
-    // Each clip holds two videos (blurred backdrop + real contain-fit
-    // copy, same source) that always play/pause together as one unit.
+    var hero = document.querySelector('.hero');
+
+    // On mobile the hero clip is a 16:9 banner, so the blurred oversized
+    // copy that fills a letterbox has nothing left to fill and is
+    // display:none'd in CSS. Skipping it here as well is the part that
+    // matters for load: a display:none video with preload="none" that is
+    // never played is never fetched, which halves the hero's video
+    // weight outright. Re-checked per call rather than cached, so
+    // rotating or resizing across the breakpoint picks the right set.
+    function videosOf(clip){
+      var sel = isMobileLayout() ? '.hero-bg-video' : 'video';
+      return clip.querySelectorAll(sel);
+    }
     function playClip(clip){
-      clip.querySelectorAll('video').forEach(function(v){ safePlay(v, false); });
+      videosOf(clip).forEach(function(v){ safePlay(v, false); });
     }
     function pauseClip(clip){
+      // Pauses everything, not just videosOf() — if the layout crossed
+      // the breakpoint since this clip started, the blurred copy may be
+      // playing even though it isn't in the current set.
       clip.querySelectorAll('video').forEach(function(v){ v.pause(); });
     }
 
+    var current = 0;
     clips[0].classList.add('is-active');
     playClip(clips[0]);
 
+    // The hero is a whole screen tall and sits at the very top, so once a
+    // visitor is reading Projects it's well out of view — and a paused
+    // clip is a decoder and a chunk of battery handed back. Same reason
+    // the card headers do this (see the media-loading script above).
+    var heroVisible = true;
+    if (hero && 'IntersectionObserver' in window){
+      new IntersectionObserver(function(entries){
+        heroVisible = entries[0].isIntersecting;
+        if (heroVisible) playClip(clips[current]);
+        else clips.forEach(pauseClip);
+      }, { threshold: 0.01 }).observe(hero);
+    }
+
+    document.addEventListener('visibilitychange', function(){
+      if (document.hidden) clips.forEach(pauseClip);
+      else if (heroVisible) playClip(clips[current]);
+    });
+
     if (clips.length < 2) return;
 
-    var current = 0;
     var CYCLE_MS = 6500;
     var CROSSFADE_MS = 1400;
 
     setInterval(function(){
+      // Don't rotate (and above all don't start fetching the next clip,
+      // which is what playing it does now that nothing preloads) while
+      // the hero is off screen or the tab is in the background.
+      if (!heroVisible || document.hidden) return;
+
       var next = (current + 1) % clips.length;
       var outgoing = clips[current];
       var incoming = clips[next];
@@ -2904,7 +3484,10 @@ private void CheckForMovablePlatform()
     var cooldownUntil = 0;
 
     function projectsSnapTop(){
-      var margin = window.innerWidth <= 640 ? 80 : 40;
+      // Mirrors the scroll-margin-top the CSS gives these sections at each
+      // width (see the "Section headers" block), so this and the browser's
+      // own scrollIntoView() agree on where the top of Projects is.
+      var margin = window.innerWidth <= 640 ? 56 : 40;
       return Math.max(0, projects.getBoundingClientRect().top + window.scrollY - margin);
     }
 
