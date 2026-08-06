@@ -118,8 +118,8 @@
   nav.tabs a.active{color:var(--accent-blue); border-bottom-color:var(--accent-blue);}
 
   /* Large "hero" state — active (via JS) only at the very top of the
-     page, decided by *action* (pressing Home, or the hero/projects
-     scroll-snap kicking in), with scroll position as fallback. This
+     page, decided by *action* (pressing Home), with scroll position as
+     fallback. This
      class no longer sets the nav's height — that's driven entirely by
      --nav-h (which JS sets to 92 or 52) so it stays locked to the hero's
      fill-height math. This rule only handles the purely-visual font and
@@ -176,11 +176,37 @@
     width:100%; height:100%;
     object-fit:contain;
   }
+  /* The bottom stop used to be 0.88 — so the last 12% of the clip was
+     still visible right up to the hero's edge, and then nothing. That
+     residual 12% *was* the hard line between the hero and Projects.
+     Ending fully opaque at var(--bg-void) means the hero's final pixels
+     are already exactly the page background, so there is no edge left to
+     see; the footage dissolves into the page instead of being cut off
+     against it. The extra 82% stop keeps the middle of the hero as light
+     as it was, so only the last stretch is doing the fade. */
   .hero-scrim{
     position:absolute; inset:0;
     background:
-      linear-gradient(180deg, rgba(20,20,21,0.62) 0%, rgba(20,20,21,0.5) 45%, rgba(20,20,21,0.88) 100%),
+      linear-gradient(180deg, rgba(20,20,21,0.62) 0%, rgba(20,20,21,0.5) 42%, rgba(20,20,21,0.9) 82%, var(--bg-void) 100%),
       linear-gradient(90deg, rgba(20,20,21,0.55) 0%, rgba(20,20,21,0.1) 45%, rgba(20,20,21,0.1) 55%, rgba(20,20,21,0.55) 100%);
+  }
+  /* ...and a texture to hand off *through*, rather than just a fade to
+     flat. Faint CRT scanlines, on-theme for a page that already dresses
+     itself as a terminal, masked so they rise out of nothing and sink
+     back into nothing inside the blend zone — a band of texture at the
+     seam that introduces no new edge of its own. Decorative only, so it
+     never intercepts a click. */
+  .hero::after{
+    content:"";
+    position:absolute; left:0; right:0; bottom:0;
+    height:180px;
+    z-index:1;
+    pointer-events:none;
+    background:repeating-linear-gradient(180deg,
+      rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px,
+      transparent 1px, transparent 4px);
+    -webkit-mask-image:linear-gradient(180deg, transparent 0%, #000 50%, transparent 100%);
+    mask-image:linear-gradient(180deg, transparent 0%, #000 50%, transparent 100%);
   }
   .hero-content{
     position:relative; z-index:1;
@@ -226,6 +252,40 @@
   }
   .btn:hover{border-color:var(--accent-blue); color:var(--accent-blue); text-decoration:none;}
   .btn.primary{border-color:var(--accent-blue-dim); color:var(--accent-blue);}
+  /* .btn is normally worn by an <a>; "View More" is a real <button>
+     because it acts on this page rather than navigating anywhere. */
+  button.btn{cursor:pointer;}
+
+  /* The one button on a collapsed card that must not be missed — it is
+     the only way into everything the card is actually about. Same shape
+     and size as View Source beside it, but *filled* with the card's own
+     accent rather than outlined: a solid block of color is what makes it
+     read as the action at a glance.
+     It used to be .btn.primary, which took its border from the global
+     --accent-blue-dim rather than the card's --accent-blue, so on the
+     orange and green cards it drew a blue outline matching nothing near
+     it — and since .primary's text was already accent-colored, the
+     shared .btn:hover had nothing left to change, which is why it looked
+     inert on hover. */
+  .btn.view-more{
+    background:var(--accent-blue);
+    border-color:var(--accent-blue);
+    color:var(--bg-void);
+    font-weight:600;
+    letter-spacing:0.06em;
+    transition:filter 0.15s ease, box-shadow 0.15s ease;
+  }
+  .btn.view-more .btn-arrow{transition:transform 0.15s ease;}
+  /* brightness() rather than a second hard-coded color, so this works
+     for all four accents without four more rules. The ring reuses the
+     card's own translucent --accent-border. */
+  .btn.view-more:hover{
+    color:var(--bg-void);
+    border-color:var(--accent-blue);
+    filter:brightness(1.14);
+    box-shadow:0 0 0 3px var(--accent-border);
+  }
+  .btn.view-more:hover .btn-arrow{transform:translateX(3px);}
 
   .copy-toast{
     position:absolute; top:-30px; left:0;
@@ -239,6 +299,10 @@
 
   /* ---------- Section headers ---------- */
   section{padding:48px 0;}
+  /* Projects is the one section that follows the hero, and 48px put its
+     header right up against the end of the video. The hero's dissolve
+     (see .hero-scrim / .hero::after) needs somewhere to land. */
+  #projects{padding-top:112px;}
   section + section{border-top:1px solid var(--line);}
   /* Every section other than the hero always ends up sitting under the
      *compact* nav (only the hero ever triggers the bigger nav-hero
@@ -272,8 +336,12 @@
   }
 
   /* ---------- Inspector panel (project card) ---------- */
+  /* Cards are big, self-contained objects now that each one is a clip
+     plus a spec sheet — at 24px they read as rows of one list rather
+     than as four separate projects. The gap is doing the separating work
+     the hidden systems list used to do by sheer height. */
   .project-grid{
-    display:grid; grid-template-columns:1fr; gap:24px;
+    display:grid; grid-template-columns:1fr; gap:56px;
     align-items:start;
   }
   .panel{
@@ -295,21 +363,78 @@
      identity without being as loud as the full accent color. */
   .panel[data-accent="skyroads"]{ --accent-blue:#e0995a; --accent-border:rgba(224,153,90,0.35); }
   .panel[data-accent="wall-e"]{ --accent-blue:#6fbf9e; --accent-border:rgba(111,191,158,0.35); }
-  .panel[data-accent="prototype"]{ --accent-blue:#d7a34e; --accent-border:rgba(215,163,78,0.35); }
+  /* Yellow, not the amber it used to be: that was --accent-amber
+     (#d7a34e), which sits about 9 degrees of hue from SkyRoads' orange
+     — close enough that the two cards read as the same colour on a page
+     where the accent is the whole point of telling them apart. This is
+     ~50 degrees, comfortably the other side of the orange/yellow line,
+     and still warm rather than acid. --accent-amber itself is left
+     alone; it also colours string literals in the code viewer. */
+  .panel[data-accent="prototype"]{ --accent-blue:#e8ce46; --accent-border:rgba(232,206,70,0.35); }
   /* Blue Sword Ninja intentionally keeps the site's default blue. */
   /* Breaks out of the normal contained width to nearly fill the
      viewport (with a visible gutter on each side, not edge-to-edge)
      while staying a completely normal in-flow element — it still pushes
-     whatever comes after it down by its real height, same as always. */
+     whatever comes after it down by its real height, same as always.
+     The height is FIXED, not a minimum: focus mode is a screenful, and
+     the panes inside it scroll. A min-height let a long foldout grow the
+     card past the bottom of the window, which is what made it look cut
+     off — now nothing can, because the card can't grow at all.
+     100vh - 90px = ~70px of clearance below the sticky nav (matches
+     NAV_CLEARANCE in the JS that scrolls it into place) plus a ~20px
+     breather at the bottom. */
   .panel.expanded{
     width:94vw;
     max-width:94vw;
-    min-height:calc(100vh - 90px); /* ~70px top clearance below the sticky nav (matches NAV_CLEARANCE in JS) + a small ~20px bottom margin */
+    height:calc(100vh - 90px);
     left:50%;
     margin-left:-47vw;
     z-index:5;
     box-shadow:0 25px 60px rgba(0,0,0,0.45);
+    display:flex; flex-direction:column;
+    /* The accent stripe normally lives on .panel-head, which focus mode
+       hides — without this the card would lose its per-project color
+       identity at exactly the moment it's the only thing on screen. */
+    border-top:2px solid var(--accent-blue);
   }
+  /* min-height:0 lets these actually shrink to their parent instead of
+     being floored at their content height, which is the whole reason the
+     scrolling below works rather than overflowing the card. */
+  .panel.expanded .panel-body{flex:1 1 auto; min-height:0;}
+  /* Focus mode is the systems list and nothing else. The header, the
+     clip, the spec rows and the button row all step aside so the
+     foldouts get the entire card — no card is asking to be read as a
+     summary anymore at this point, the visitor already chose this one. */
+  .panel.expanded .panel-head,
+  .panel.expanded .panel-media,
+  .panel.expanded .panel-info{display:none;}
+
+  /* The one piece of chrome focus mode keeps: a way back out. It only
+     exists while expanded, so it's display:none the rest of the time
+     rather than visually hidden — nothing to tab into by accident. */
+  .focus-back{
+    display:none;
+    align-items:center; gap:8px;
+    margin:14px 0 2px 20px;
+    padding:9px 15px 9px 11px;
+    font-family:var(--mono); font-size:13px; letter-spacing:0.03em;
+    color:var(--text-hi);
+    background:var(--bg-field);
+    border:1px solid var(--line-soft);
+    border-radius:var(--radius);
+    cursor:pointer;
+    transition:color 0.15s ease, border-color 0.15s ease;
+  }
+  /* flex-start so it stays button-sized instead of stretching to the
+     full width of the column .panel.expanded turns into. */
+  .panel.expanded .focus-back{display:inline-flex; align-self:flex-start; flex:0 0 auto;}
+  .focus-back svg{
+    width:17px; height:17px; flex:0 0 auto;
+    transition:transform 0.15s ease;
+  }
+  .focus-back:hover{color:var(--accent-blue); border-color:var(--accent-blue);}
+  /* The arrow itself leans the way it's about to take you. */
+  .focus-back:hover svg{transform:translateX(-3px);}
   .panel-head{
     background:var(--bg-panel-head);
     padding:12px 16px;
@@ -328,28 +453,42 @@
     padding:3px 8px; border-radius:2px;
     color:var(--accent-blue); border:1px solid var(--accent-blue);
   }
-  .chip.amber{color:var(--accent-amber); border-color:var(--accent-amber);}
+  /* No .amber variant any more: its only user was the prototype card's
+     chip, and pinning that to --accent-amber is what left it wearing the
+     old pre-yellow accent while everything else on the card moved. Plain
+     .chip reads --accent-blue, which each card overrides, so it now
+     matches whatever card it is sitting on. */
 
-  /* Card body splits into a left "media + specs" column and a right
-     "systems" column. Sits 50/50 by default, and narrows the left side
-     once a foldout is open so the systems column gets more room.
-     Uses Flexbox rather than CSS Grid for this split specifically
-     because Safari has long-standing bugs animating grid-template-columns
-     (it can fail to apply the change at all, not just skip the
-     animation) — flex-basis has been reliably animatable everywhere,
-     Safari included, for well over a decade. */
+  /* Collapsed, a card is a two-column spec sheet: the header clip on the
+     left with the metadata and actions stacked down the right, buttons
+     pinned to the bottom edge. The systems list is not part of this view
+     at all — "View More" is what reveals it, in focus mode. Giving the
+     clip the larger share is deliberate: it's the only thing on a
+     collapsed card that shows the project rather than describing it. */
   .panel-body{
     display:flex;
+    align-items:stretch;
   }
   .panel-media{
-    flex:0 0 50%;
+    flex:0 0 62%;
     min-width:0;
     border-right:1px solid var(--line);
-    display:flex; flex-direction:column;
-    transition:flex-basis 0.3s ease;
+    display:flex; flex-direction:column; justify-content:center;
   }
-  .panel-body.shrink-media .panel-media{flex-basis:25%;}
-  .panel-media .fields{border-bottom:none;}
+  /* The vertical divider between the two columns is the separator here,
+     so the clip's own bottom rule would just be a stray line. */
+  .panel-media .media-slot{border-bottom:none;}
+  .panel-info{
+    flex:1 1 auto;
+    min-width:0;
+    display:flex; flex-direction:column;
+  }
+  .panel-info .fields{border-bottom:none;}
+  /* Pushes the button row to the bottom of the info column no matter how
+     tall the clip beside it makes the card, so "View Source / View More"
+     always sits on the card's bottom edge rather than floating directly
+     under whichever project happened to have the most spec rows. */
+  .panel-info .panel-foot{margin-top:auto;}
 
   .media-slot{
     background-image:
@@ -552,7 +691,10 @@
   .field-row{padding:5px 0;}
   .field-row .label{flex:0 0 110px;}
 
-  .systems{padding:8px 16px 14px; flex:1 1 auto; min-width:0;}
+  /* Hidden until focus mode — see .panel.expanded above. A collapsed
+     card is a poster, not a table of contents. */
+  .systems{padding:8px 16px 14px; flex:1 1 auto; min-width:0; display:none;}
+  .panel.expanded .systems{display:block; padding:0 0 0 0; height:100%; min-height:0;}
   details.system{
     border-bottom:1px solid var(--line);
   }
@@ -594,29 +736,175 @@
   }
   details.system summary .kind-icon svg{width:18px; height:18px; display:block;}
 
-  /* Once one foldout in a card is open, the *other*, closed foldout
-     headers shrink so they stop eating vertical space next to the open
-     one. Scoped to :has(details.system[open]) so this only kicks in
-     when something is actually open — with everything closed the card
-     looks exactly like it always has. The .panel prefix keeps this more
-     specific than the .panel.expanded font-size rules further down.
-     Wrapped to min-width:761px to match the JS focus-mode breakpoint —
-     on mobile there's no separate "focus mode" card to make room for,
-     so foldout headers stay full-size there. */
+  /* ---------- Focus mode: master / detail ----------
+     On a wide screen the systems list stops being an accordion and
+     becomes a two-pane browser: a narrow rail of foldout titles down the
+     left, and the open one's content filling everything to the right of
+     it. One foldout is always open (enforced in JS), so the right pane
+     is never blank.
+
+     The geometry is deliberately simple so the two halves can't drift
+     apart: .systems carries no padding of its own, which makes its
+     content box and its padding box identical — so --rail-w means the
+     same number of pixels to the rail items' `width` (a % of the content
+     box) and to the open pane's `left` (a % of the padding box). Put
+     padding back on .systems and the two stop lining up. Any inset the
+     rail needs is taken from the items themselves instead. */
   @media (min-width:761px){
-    .panel .systems:has(details.system[open]) details.system:not([open]) summary{
-      padding:7px 10px;
-      font-size:12px;
-      gap:6px;
-      margin:4px 0;
+    .panel.expanded .systems{
+      --rail-w:clamp(190px, 19%, 320px);
+      position:relative;
+      /* The open pane below is inset to exactly these bounds, so this
+         clips nothing in practice — it's here so a card that ever grows
+         more foldouts than the rail is tall fails visibly, inside the
+         card, instead of spilling out of it. */
+      overflow:hidden;
     }
-    .panel .systems:has(details.system[open]) details.system:not([open]) summary::before{
+    /* The divider between rail and pane lives here, on the fixed
+       container, rather than as a border on the pane itself — the pane
+       slides horizontally when the selection changes (see pane-enter),
+       and a border riding along with it would drag the seam between the
+       two halves back and forth with it. */
+    .panel.expanded .systems::before{
+      content:"";
+      position:absolute;
+      left:var(--rail-w); top:0; bottom:0;
+      width:1px; background:var(--line);
+      pointer-events:none;
+    }
+    /* The rail slice is exactly --rail-w wide (that's where the pane's
+       left edge lands), and the items live inside it: 20px in from the
+       card edge, 14px clear of the divider. Both come out of the width
+       rather than being added to it, or the items would reach under the
+       pane. */
+    .panel.expanded details.system{
+      width:calc(var(--rail-w) - 20px);
+      margin-left:20px;
+      padding-right:14px;
+      border-bottom:none;
+    }
+    .panel.expanded details.system:first-of-type{margin-top:12px;}
+    /* Titles are long and the rail is narrow, so they wrap — top-aligned
+       so the caret and icon sit on the first line rather than floating
+       in the middle of a three-line block. */
+    .panel.expanded details.system summary{
+      align-items:flex-start;
       font-size:13px;
-      width:12px;
+      padding:10px 11px;
+      line-height:1.45;
     }
-    .panel .systems:has(details.system[open]) details.system:not([open]) summary .kind-icon svg{
-      width:14px; height:14px;
+    .panel.expanded details.system summary .kind-icon,
+    .panel.expanded details.system summary::before{margin-top:1px;}
+    /* The selected rail item. In a list where something is always open,
+       "which one" is the only state worth showing, so it gets the full
+       accent treatment while the rest stay neutral. */
+    .panel.expanded details.system[open] summary{
+      background-color:#38383c;
+      color:var(--accent-blue);
+      border-color:var(--accent-blue);
+      cursor:default;
     }
+    /* The caret points at the pane it opens, off to the right — so
+       unlike an accordion it does not rotate downward when open. */
+    .panel.expanded details.system[open] summary::before{transform:none;}
+
+    /* The open foldout's body is lifted out of the rail and into the
+       rest of the card. Absolute rather than a grid/flex cell because
+       it's a child of its own <details>, not of .systems — keeping the
+       markup a plain list of <details> is what lets a new foldout stay a
+       copy-paste job. */
+    .panel.expanded details.system[open] .system-body{
+      position:absolute;
+      left:var(--rail-w);
+      right:0; top:0; bottom:0;
+      overflow-y:auto;
+      padding:18px 24px 24px var(--pane-slide);
+    }
+    /* Picking a different foldout slides its content in left-to-right.
+       The distance is exactly the pane's own left padding, so at the
+       first frame the text starts flush with the divider and travels
+       right to its resting indent — it can never begin further left than
+       that, which is what keeps it off the rail buttons. (The pane's box
+       does extend --pane-slide to the left mid-slide, but it paints
+       nothing there: the divider is drawn by .systems::before, not by
+       this element.) That coupling is also the ceiling on how far this
+       one can travel, which is why the padding is as generous as it is.
+       Applied via a JS-toggled class rather than straight off [open], so
+       it fires when the *selection changes* and not also on the way into
+       focus mode, where the whole card is already sliding in. */
+    .panel.expanded details.system[open] .system-body.pane-enter{
+      animation:
+        pane-slide-in 320ms cubic-bezier(0.25, 0.46, 0.45, 0.94) both,
+        focus-fade-in 130ms ease-out both;
+    }
+  }
+
+  /* ---------- Focus-mode motion ----------
+     Every one of these splits the movement and the fade into two
+     separate animations on purpose. As a single keyframe set (opacity
+     and transform ramping together over one duration) the element spent
+     most of its travel still translucent, so all you actually saw was
+     the last, slowest sliver of an ease-out — which read as a smear
+     rather than as a slide. Running the fade over a much shorter
+     duration than the slide means the element is fully opaque early and
+     you watch it cover real distance. Keep the two durations apart.
+
+     The distance is one shared value rather than a per-element
+     percentage, so the Back button and the systems list travel as one
+     object instead of each covering a share of its own (very different)
+     width. .panel's overflow:hidden clips whatever hangs off the edge. */
+  .panel{
+    --focus-slide:min(26vw, 420px);
+    --pane-slide:64px;
+  }
+  @keyframes focus-slide-in{
+    from{transform:translateX(var(--focus-slide));}
+    to{transform:none;}
+  }
+  @keyframes focus-slide-out{
+    from{transform:none;}
+    to{transform:translateX(var(--focus-slide));}
+  }
+  @keyframes pane-slide-in{
+    from{transform:translateX(calc(var(--pane-slide) * -1));}
+    to{transform:none;}
+  }
+  @keyframes focus-fade-in{ from{opacity:0;} to{opacity:1;} }
+  @keyframes focus-fade-out{ from{opacity:1;} to{opacity:0;} }
+
+  .panel.expanded .focus-back,
+  .panel.expanded .systems{
+    animation:
+      focus-slide-in 400ms cubic-bezier(0.25, 0.46, 0.45, 0.94) both,
+      focus-fade-in 150ms ease-out both;
+  }
+  /* The same numbers as the entrance, in the other direction: same
+     distance, same 400ms slide, same 150ms fade, same decelerating
+     curve. The curve is deliberately NOT reversed into an ease-in — the
+     entrance throws its contents in and lets them settle, so the exit
+     throws them out the same way, which is also what puts most of the
+     travel early enough to actually be seen before the fade takes them.
+     The fade's 50ms delay is the only offset: it lets the slide get
+     moving at full opacity first, and still finishes by 200ms — which is
+     when the box lands (FLIP_DURATION) and the JS commits the collapse.
+     Whatever is left of the 400ms slide after that point is already
+     invisible, so it costs nothing to declare it and never see it.
+     Same specificity as the pair above, so this has to come after them
+     to win while both classes are on the card — which is exactly the
+     window in which the exit plays, before .expanded comes off. */
+  .panel.focus-leaving .focus-back,
+  .panel.focus-leaving .systems{
+    animation:
+      focus-slide-out 400ms cubic-bezier(0.25, 0.46, 0.45, 0.94) both,
+      focus-fade-out 150ms ease-out 50ms both;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .panel.expanded .focus-back,
+    .panel.expanded .systems,
+    .panel.focus-leaving .focus-back,
+    .panel.focus-leaving .systems,
+    .panel.expanded details.system[open] .system-body.pane-enter{animation:none;}
   }
 
   details.system .system-body{
@@ -629,39 +917,32 @@
     display:flex; gap:10px; flex-wrap:wrap;
   }
 
-  /* The card is nearly full-screen-width once expanded, so scale text up
-     and pull the videos in a bit — otherwise the clips read as oversized
-     against body text still sized for the normal, contained card width.
-     Video sizing uses clamp() with a vh-based preferred value rather than
-     a flat max-width — that way it actually shrinks to fit on a shorter
-     screen (like a 13"/15" laptop) instead of always reaching for the
-     same ceiling regardless of how much vertical room is available,
-     which was forcing extra scrolling on smaller screens even though
-     "focus mode" is supposed to fit without it. */
-  .panel.expanded details.system summary{font-size:15.5px;}
+  /* The card is nearly full-screen-width once expanded, so scale the body
+     text up — otherwise it reads as undersized against a pane this wide. */
   .panel.expanded details.system .system-body{font-size:clamp(14px, 1.9vh, 16.5px); line-height:1.6;}
   .panel.expanded .system-clip .caption{font-size:13px;}
-  .panel.expanded .field-row{font-size:15.5px;}
-  .panel.expanded .field-row .label{font-size:14px;}
   /* Sizing by a flat vh percentage ignores everything else sharing the
-     same column (header text, description, caption, the other foldout
-     headers below) — so a flat "75vh tall video" plus all of that easily
-     blew past the panel's own height budget. Instead, subtract a rough
-     estimate for that surrounding chrome (~450px) from the viewport
-     height FIRST, then convert what's left into the video's width via
-     its 16:9 aspect ratio — so it sizes to whatever room is actually
-     left over, not a guess that ignores its neighbors. This 450px is an
-     estimate; if the video is still slightly over or under, that's the
-     number to adjust. */
-  .panel.expanded .system-body > .system-clip{width:100%; max-width:clamp(450px, calc((100vh - 450px) * 16 / 9), 1600px); margin-left:0; margin-right:auto;}
-  .panel.expanded .system-clip-row{width:100%; max-width:clamp(800px, calc(((100vh - 450px) * 16 / 9) * 2 + 12px), 2600px); margin-left:0; margin-right:auto;}
+     pane (the description above the clip, the caption, a code button
+     row) — so a flat "75vh tall video" plus all of that overflows. Take a
+     rough estimate for that surrounding chrome off the viewport height
+     FIRST, then convert what's left into the video's width via its 16:9
+     aspect ratio, so it sizes to the room actually left over.
+     The subtraction dropped from 450px to 315px when the foldouts moved
+     into their own pane: the clip no longer shares vertical space with
+     the card header, the spec rows, or the other foldout headers — those
+     are either gone or off in the left rail now. Tuned so that every
+     foldout currently on the page fits its pane without scrolling at
+     900px tall; the pane scrolls, so a future one with more prose than
+     these degrades to a scrollbar rather than being clipped. */
+  .panel.expanded .system-body > .system-clip{width:100%; max-width:clamp(450px, calc((100vh - 315px) * 16 / 9), 1600px); margin-left:0; margin-right:auto;}
+  .panel.expanded .system-clip-row{width:100%; max-width:clamp(800px, calc(((100vh - 315px) * 16 / 9) * 2 + 12px), 2600px); margin-left:0; margin-right:auto;}
   /* Foldouts with a "View Code" button (Blob Enemy AI, Modular Platform
      System) have ~50px more chrome than the ones without — the button
      row plus its margin — so they get a bigger subtraction here rather
      than sharing the number tuned against a foldout that doesn't have
      one, which would leave those specific videos slightly too tall. */
-  .panel.expanded .system-body:has(.code-toggle-row) > .system-clip{max-width:clamp(450px, calc((100vh - 500px) * 16 / 9), 1600px);}
-  .panel.expanded .system-body:has(.code-toggle-row) .system-clip-row{max-width:clamp(800px, calc(((100vh - 500px) * 16 / 9) * 2 + 12px), 2600px);}
+  .panel.expanded .system-body:has(.code-toggle-row) > .system-clip{max-width:clamp(450px, calc((100vh - 390px) * 16 / 9), 1600px);}
+  .panel.expanded .system-body:has(.code-toggle-row) .system-clip-row{max-width:clamp(800px, calc(((100vh - 390px) * 16 / 9) * 2 + 12px), 2600px);}
 
   @media (prefers-reduced-motion: reduce){
     details.system summary::before{transition:none;}
@@ -812,6 +1093,12 @@
        line-height was ~130px of decoration above the name. Kept,
        just tightened, with the two least-load-bearing lines hidden. */
     .code-block{font-size:11.5px; line-height:1.65; margin-bottom:16px;}
+    /* The desktop seam this covers doesn't exist here: the clip is a
+       banner across the top with the intro text on flat background
+       below it, so a band pinned to the hero's *bottom* would sit over
+       the text rather than over any video edge. The banner's own fade
+       is handled by the .hero-scrim override above. */
+    .hero::after{display:none;}
     .hero-code-extra{display:none;}
     h1.name{font-size:clamp(1.85rem, 8.5vw, 2.6rem);}
     p.role{font-size:13px; margin:0 0 14px;}
@@ -825,9 +1112,10 @@
       padding-right:max(16px, env(safe-area-inset-right));
     }
     section{padding:32px 0;}
+    #projects{padding-top:48px;}
     .section-head{margin-bottom:18px;}
     h2.section-title{font-size:1.25rem;}
-    .project-grid{gap:16px;}
+    .project-grid{gap:32px;}
     .fields{padding:12px;}
     .field-row{font-size:13px; padding:4px 0;}
     .panel-foot{padding:12px;}
@@ -842,39 +1130,36 @@
 
   /* ---------- Mobile project cards ---------- */
   @media (max-width:760px){
+    /* One column: clip, then specs, then the two buttons. The
+       reading-order gymnastics this block used to do (dissolving
+       .panel-media with display:contents so the systems list could be
+       ordered between the clip and the specs) is gone with the layout
+       that needed it — the systems list isn't on a collapsed card at
+       all now, so nothing has to be threaded past anything. */
     .panel-body{flex-direction:column;}
-    /* THE reading-order fix. Stacked, the "media + specs" column put
-       the genre/engine/role rows and the source-code link *between*
-       the header clip and the systems list — so the first foldout of
-       every card started 465-590px below the card's own top, and you
-       scrolled past the same three metadata rows four times over.
-       display:contents dissolves the wrapper so its three children
-       become direct flex items of the card body, and `order` can
-       then interleave them with the systems list: clip first (it's
-       the hook), systems second (it's the substance), specs and
-       source link underneath. */
-    .panel-media{display:contents;}
-    .panel-media .media-slot{order:1;}
-    .systems{order:2; padding:6px 12px 10px;}
-    .panel-media .fields{order:3; border-top:1px solid var(--line);}
-    .panel-media .panel-foot{order:4;}
+    .panel-media{flex:0 0 auto; border-right:none;}
+    /* Stacked, the columns sit above/below each other, so the divider
+       goes back to being the clip's own bottom rule. */
+    .panel-media .media-slot{border-bottom:1px solid var(--line);}
+    .systems{padding:6px 12px 10px;}
+    .panel.expanded .systems{padding:6px 12px 14px; height:auto;}
 
-    /* Focus mode — the card breaking out to 94vw and centering
-       itself — is desktop-only; the JS refuses to enter it below
-       760px because a phone is already showing the card as wide as
-       it can go. This is the safety net for *rotating into* mobile
-       while a card is already expanded, which would otherwise leave
-       a 94vw-wide card with a -47vw margin on a 390px screen. */
+    /* Focus mode still works here — a phone gets the same "hide
+       everything but the foldouts" view — but as a plain stacked
+       accordion, not the desktop rail/pane split: a 19% rail on a
+       390px screen is 74px, and the pane beside it would be narrower
+       than a single clip. It also doesn't do the 94vw breakout or the
+       fixed screenful height — the card grows to its content and the
+       page scrolls, which is the one place a phone has room to spare. */
     .panel.expanded{
-      width:auto; max-width:none; min-height:0;
+      width:auto; max-width:none; height:auto;
       left:auto; margin-left:0; box-shadow:none;
     }
-    .panel.expanded details.system summary{font-size:13.5px;}
+    .panel.expanded details.system summary{font-size:13.5px; padding:13px 12px;}
     .panel.expanded details.system .system-body{font-size:14px;}
-    .panel.expanded .field-row{font-size:13px;}
-    .panel.expanded .field-row .label{font-size:12.5px;}
     .panel.expanded .system-body > .system-clip,
     .panel.expanded .system-clip-row{max-width:none;}
+    .focus-back{margin:12px 0 2px 12px; min-height:44px;}
 
     details.system summary{
       /* 48px minimum, and the padding grows with it — a 37px-tall
@@ -998,6 +1283,10 @@
        foldout or a button gives no acknowledgement at all until the
        layout moves. */
     .btn:active{border-color:var(--accent-blue); color:var(--accent-blue);}
+    /* Filled, so the shared .btn:active would put accent text on an
+       accent background. Brightness is the whole feedback here. */
+    .btn.view-more:active{color:var(--bg-void); filter:brightness(1.14);}
+    .focus-back:active{border-color:var(--accent-blue); color:var(--accent-blue);}
     details.system summary:active{
       background-color:#38383c;
       color:var(--accent-blue);
@@ -1096,6 +1385,7 @@
 
     <!-- PROJECT 1 -->
     <div class="panel" data-accent="skyroads">
+      <button class="focus-back" type="button" aria-label="Back to project overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>Back</button>
       <div class="panel-head">
         <span class="title"><span class="icon">◆</span>SkyRoadsRemake.cs</span>
         <span class="chip">3D Platformer</span>
@@ -1107,6 +1397,8 @@
               <source src="media/skyRoads-remake/headliner.mp4" type="video/mp4">
             </video>
           </div>
+        </div>
+        <div class="panel-info">
           <div class="fields">
             <div class="field-row"><span class="label">Genre</span><span class="value">3D Platformer</span></div>
             <div class="field-row"><span class="label">Engine</span><span class="value">Unity 6000.3.2f1</span></div>
@@ -1114,6 +1406,7 @@
           </div>
           <div class="panel-foot">
             <a class="btn" href="https://github.com/TomerBenSimhon/Skyroads---Remake" target="_blank" rel="noopener">View Source ▸</a>
+            <button class="btn view-more" type="button" aria-expanded="false">View More <span class="btn-arrow" aria-hidden="true">▸</span></button>
           </div>
         </div>
         <div class="systems">
@@ -1470,6 +1763,7 @@ private void LateUpdate()
 
     <!-- PROJECT 2 -->
     <div class="panel">
+      <button class="focus-back" type="button" aria-label="Back to project overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>Back</button>
       <div class="panel-head">
         <span class="title"><span class="icon">▣</span>BlueSwordNinja.cs</span>
         <span class="chip">2D Action Platformer</span>
@@ -1481,6 +1775,8 @@ private void LateUpdate()
               <source src="media/blue-sword-ninja/headliner.mp4" type="video/mp4">
             </video>
           </div>
+        </div>
+        <div class="panel-info">
           <div class="fields">
             <div class="field-row"><span class="label">Genre</span><span class="value">2D Action Platformer</span></div>
             <div class="field-row"><span class="label">Engine</span><span class="value">Unity 2022.3.55f1</span></div>
@@ -1488,6 +1784,7 @@ private void LateUpdate()
           </div>
           <div class="panel-foot">
             <a class="btn" href="https://github.com/TomerBenSimhon/2D-Platformer-IAC" target="_blank" rel="noopener">View Source ▸</a>
+            <button class="btn view-more" type="button" aria-expanded="false">View More <span class="btn-arrow" aria-hidden="true">▸</span></button>
           </div>
         </div>
         <div class="systems">
@@ -1613,6 +1910,7 @@ public void ChangeState(EnemyState newState)
 
     <!-- PROJECT 3 -->
     <div class="panel" data-accent="wall-e">
+      <button class="focus-back" type="button" aria-label="Back to project overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>Back</button>
       <div class="panel-head">
         <span class="title"><span class="icon">⬡</span>RoboDefense.cs</span>
         <span class="chip">3D Action Tower Defense</span>
@@ -1624,6 +1922,8 @@ public void ChangeState(EnemyState newState)
               <source src="media/wall-e/headliner.mp4" type="video/mp4">
             </video>
           </div>
+        </div>
+        <div class="panel-info">
           <div class="fields">
             <div class="field-row"><span class="label">Genre</span><span class="value">3D Action Tower Defense</span></div>
             <div class="field-row"><span class="label">Engine</span><span class="value">Unity 6000.4.6f1</span></div>
@@ -1631,6 +1931,7 @@ public void ChangeState(EnemyState newState)
           </div>
           <div class="panel-foot">
             <a class="btn" href="https://github.com/danielnoam/ProjectWallE" target="_blank" rel="noopener">View Source ▸</a>
+            <button class="btn view-more" type="button" aria-expanded="false">View More <span class="btn-arrow" aria-hidden="true">▸</span></button>
           </div>
         </div>
         <div class="systems">
@@ -1931,9 +2232,10 @@ private void ApplyCameraYawTorqueIfValid()
 
     <!-- PROJECT 4 - PLACEHOLDER -->
     <div class="panel" data-accent="prototype">
+      <button class="focus-back" type="button" aria-label="Back to project overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>Back</button>
       <div class="panel-head">
         <span class="title"><span class="icon">◐</span>Magnet Adventure</span>
-        <span class="chip amber">Prototype — Systems Complete</span>
+        <span class="chip">Prototype — Systems Complete</span>
       </div>
       <div class="panel-body">
         <div class="panel-media">
@@ -1942,6 +2244,8 @@ private void ApplyCameraYawTorqueIfValid()
               <source src="media/MagnetAdventure/headliner.mp4" type="video/mp4">
             </video>
           </div>
+        </div>
+        <div class="panel-info">
           <div class="fields">
             <div class="field-row"><span class="label">Genre</span><span class="value">3D Physics Puzzle-Platformer</span></div>
             <div class="field-row"><span class="label">Engine</span><span class="value">Unity 6</span></div>
@@ -1950,6 +2254,7 @@ private void ApplyCameraYawTorqueIfValid()
           </div>
           <div class="panel-foot">
             <a class="btn" href="https://github.com/TomerBenSimhon/IAC---Adventure-Game" target="_blank" rel="noopener">View Source ▸</a>
+            <button class="btn view-more" type="button" aria-expanded="false">View More <span class="btn-arrow" aria-hidden="true">▸</span></button>
           </div>
         </div>
         <div class="systems">
@@ -2292,19 +2597,19 @@ private void CheckForMovablePlatform()
   // `<script>` block is a separate top-level scope, but plain function
   // declarations here still land on `window`, same as the `window.__*`
   // cross-script hooks further down).
-  var FOCUS_MODE_BREAKPOINT = 760; // matches the CSS @media (max-width:760px) breakpoint
+  var MOBILE_BREAKPOINT = 760; // matches the CSS @media (max-width:760px) breakpoint
 
-  // Shared by the accordion-reorder and panel-expand animations further
-  // down — they run as one visually connected motion (opening a foldout
-  // and the surrounding card growing finish at the same moment), so both
-  // read this one constant instead of each declaring its own 200ms and
-  // relying on a comment to keep them numerically in sync.
+  // Shared by the accordion-reorder and focus-mode FLIP animations
+  // further down — a foldout opening and the list resettling around it
+  // read as one motion, so both take their duration from this one
+  // constant instead of each declaring its own 200ms and relying on a
+  // comment to keep them numerically in sync.
   var FOLDOUT_ANIMATION_MS = 200;
 
   // One place to ask "are we in the phone layout?", so the JS and the
   // CSS @media (max-width:760px) blocks can't disagree about it.
   function isMobileLayout(){
-    return window.innerWidth <= FOCUS_MODE_BREAKPOINT;
+    return window.innerWidth <= MOBILE_BREAKPOINT;
   }
 
   function safePlay(video, resetTime){
@@ -2484,18 +2789,20 @@ private void CheckForMovablePlatform()
     var DURATION = FOLDOUT_ANIMATION_MS;
     var registry = new Map();
 
-    // On a phone, tapping a foldout near the bottom of the screen opens
-    // its body entirely below the fold — and if it's a tall one, the
-    // summary you just tapped scrolls out of view as siblings above it
-    // close. Either way the visitor's next move is a scroll hunt for the
-    // thing they just asked to see. So: pull the opened summary up to
-    // just under the sticky nav, and the content starts right there.
+    // Opening a foldout near the bottom of the screen puts its body
+    // entirely below the fold — and if it's a tall one, the summary you
+    // just clicked scrolls out of view as siblings above it close and
+    // the opened one jumps to the top of the list. Either way the
+    // visitor's next move is a scroll hunt for the thing they just asked
+    // to see. So: pull the opened summary up to just under the sticky
+    // nav, and the content starts right there.
     //
-    // Desktop doesn't need this — focus mode already centers the whole
-    // card in the viewport when a foldout opens — so it's scoped to the
-    // same breakpoint where focus mode bows out.
+    // This used to be phone-only, back when opening a foldout on desktop
+    // was also what triggered focus mode — the card centering itself in
+    // the viewport did this job as a side effect. Focus mode is its own
+    // deliberate click now and doesn't move anything when a foldout
+    // opens inside it, so every width needs this.
     function scrollFoldoutIntoView(details){
-      if (!isMobileLayout()) return;
       var summary = details.querySelector('summary');
       if (!summary) return;
       var header = document.querySelector('header.toolbar');
@@ -2507,84 +2814,16 @@ private void CheckForMovablePlatform()
       window.scrollTo({ top: target, behavior: reduceMotion ? 'auto' : 'smooth' });
     }
 
-    // The open foldout jumps to the top of its list; closing it sends it
-    // back to its original spot. Only one item is ever out of place at a
-    // time (closeSiblings below enforces single-open), so restoring is
-    // just: replay the full original order via appendChild — appendChild
-    // on an already-present child *moves* it rather than duplicating it,
-    // so re-applying the whole list in the desired sequence reorders the
-    // container in one pass, regardless of whatever order it's in now.
-    // This is plain DOM reordering (not CSS `order`), so :last-child
-    // borders and any other DOM-order-dependent CSS stay correct too.
-    var systemsOriginalOrder = new Map(); // .systems container -> Element[]
-    document.querySelectorAll('.systems').forEach(function(container){
-      systemsOriginalOrder.set(container, Array.from(container.children));
-    });
-    var REORDER_DURATION = DURATION;
-
-    function reorderTransform(el, fromTransform){
-      el.style.transition = 'none';
-      el.style.transform = fromTransform;
-      void el.offsetWidth;
-      el.style.transition = 'transform ' + REORDER_DURATION + 'ms ease-out';
-      el.style.transform = '';
-      var done = false;
-      function cleanup(){
-        if (done) return;
-        done = true;
-        el.style.transition = '';
-        el.style.transform = '';
-        el.removeEventListener('transitionend', cleanup);
-      }
-      el.addEventListener('transitionend', cleanup);
-      setTimeout(cleanup, REORDER_DURATION + 60);
-    }
-
-    // openEl (or null for "nothing open") decides the target order:
-    // the open item goes first. If something else was open (found by
-    // querying for the [open] attribute, which is still set on the old
-    // item at this point — it hasn't shrunk closed yet), that previously
-    // open item is sent to the very end instead of back to its original
-    // slot, so each newly opened foldout bumps the last one down to the
-    // bottom rather than everything resetting to page order. Closing
-    // back down to nothing open still resets fully to original order.
-    function reorderSystems(container, openEl){
-      var original = systemsOriginalOrder.get(container);
-      if (!original) return;
-      var target;
-      if (openEl){
-        var prevOpen = container.querySelector('details.system[open]');
-        if (prevOpen === openEl) prevOpen = null;
-        var current = Array.from(container.children);
-        var rest = current.filter(function(el){ return el !== openEl && el !== prevOpen; });
-        target = [openEl].concat(rest);
-        if (prevOpen) target.push(prevOpen);
-      } else {
-        target = original.slice();
-      }
-
-      if (reduceMotion){
-        target.forEach(function(el){ container.appendChild(el); });
-        return;
-      }
-
-      var before = target.map(function(el){ return el.getBoundingClientRect(); });
-      target.forEach(function(el){ container.appendChild(el); });
-      target.forEach(function(el, i){
-        var last = el.getBoundingClientRect();
-        var dy = before[i].top - last.top;
-        if (Math.abs(dy) < 1) return;
-        reorderTransform(el, 'translate(0,' + dy + 'px)');
-      });
-    }
-
-    // Instant, unanimated version — used for the panel-focus-mode's
-    // instant hand-off between cards, where everything else also snaps
-    // immediately rather than easing.
-    function reorderSystemsInstant(container){
-      var original = systemsOriginalOrder.get(container);
-      if (!original) return;
-      original.forEach(function(el){ container.appendChild(el); });
+    // Wide-screen focus mode is not an accordion at all: it's a rail of
+    // titles plus a pane (see the "Focus mode: master / detail" CSS).
+    // There, the open body is absolutely positioned out of its <details>,
+    // so it contributes nothing to that element's height — which makes
+    // the height animation below animate to a wrong number, and makes
+    // "scroll the summary to the top" wrong too, since the pane doesn't
+    // move when the selection changes.
+    function isMasterDetail(el){
+      var panel = el.closest('.panel');
+      return !!panel && panel.classList.contains('expanded') && window.innerWidth > MOBILE_BREAKPOINT;
     }
 
     function Accordion(el){
@@ -2601,31 +2840,43 @@ private void CheckForMovablePlatform()
     Accordion.prototype.onClick = function(e){
       e.preventDefault();
 
-      // Reordering (and the closed-header shrink handled purely in CSS)
-      // is a "focus mode" companion behavior — skip it below the same
-      // 760px breakpoint where focus mode itself doesn't apply, so
-      // mobile foldouts just open in place, in their normal order.
-      var willOpen = this.isClosing || !this.el.open;
-      if (window.innerWidth > FOCUS_MODE_BREAKPOINT){
-        reorderSystems(this.el.parentNode, willOpen ? this.el : null);
-      }
+      // Exactly one foldout is open at all times. Focus mode is the
+      // systems list and nothing else, so a card with everything closed
+      // is a box with nothing in it — and in master/detail it's worse: a
+      // rail of titles beside an empty pane. Clicking the already-open
+      // one is therefore a no-op, not a close. (isClosing means it's
+      // mid-shrink because a sibling took over, so that still counts as
+      // "not open" and reopens it.)
+      if (this.el.open && !this.isClosing) return;
 
-      if (reduceMotion){
-        this.el.open = willOpen;
+      if (isMasterDetail(this.el)){
+        // Nothing to animate on the <details> itself: the body isn't
+        // inside its box here, it's positioned into the pane. The pane's
+        // own left-to-right slide is a CSS animation, restarted by hand
+        // — the class is usually still on the element from the last time
+        // this foldout was picked, and re-adding a class that's already
+        // there doesn't replay anything without the reflow in between.
+        closeSiblingsInstant(this.el);
+        this.el.open = true;
         this.el.dispatchEvent(new Event('toggle'));
-        if (willOpen){
-          closeSiblings(this.el);
-          scrollFoldoutIntoView(this.el);
+        if (this.body && !reduceMotion){
+          this.body.classList.remove('pane-enter');
+          void this.body.offsetWidth;
+          this.body.classList.add('pane-enter');
         }
         return;
       }
 
-      this.el.style.overflow = 'hidden';
-      if (this.isClosing || !this.el.open){
-        this.open();
-      } else if (this.isExpanding || this.el.open){
-        this.shrink();
+      if (reduceMotion){
+        this.el.open = true;
+        this.el.dispatchEvent(new Event('toggle'));
+        closeSiblings(this.el);
+        scrollFoldoutIntoView(this.el);
+        return;
       }
+
+      this.el.style.overflow = 'hidden';
+      this.open();
     };
 
     // Shared by shrink()/expand() below — same animate/finish/oncancel/
@@ -2717,11 +2968,28 @@ private void CheckForMovablePlatform()
       });
     }
 
+    // Master/detail's version: there is no height to animate away, and
+    // any inline height/overflow left over from a previous stacked-layout
+    // animation has to be cleared or it pins the rail item at a stale
+    // size for good.
+    function closeSiblingsInstant(el){
+      var systems = el.closest('.systems');
+      if (!systems) return;
+      systems.querySelectorAll('details.system').forEach(function(other){
+        if (other === el || !other.open) return;
+        var acc = registry.get(other);
+        if (acc && acc.animation) acc.animation.cancel();
+        other.open = false;
+        other.style.height = '';
+        other.style.overflow = '';
+        other.dispatchEvent(new Event('toggle'));
+      });
+    }
+
     document.querySelectorAll('details.system').forEach(function(el){
       registry.set(el, new Accordion(el));
     });
     window.__accordionRegistry = registry;
-    window.__reorderSystemsInstant = reorderSystemsInstant;
 
     // Safety net: if the viewport changes (like a phone rotating between
     // portrait and landscape, which is exactly when our clip-rows switch
@@ -2740,16 +3008,25 @@ private void CheckForMovablePlatform()
     });
   })();
 
-  // The left "media + specs" column narrows once a foldout is open in
-  // that card, and the whole card breaks out to nearly the full
-  // viewport width (leaving a visible gutter on each side, not
-  // edge-to-edge) while remaining a totally normal in-flow element —
-  // anything after it still gets pushed down by its real height, same
-  // as always. The first time a card expands, the page smooth-scrolls
-  // so it settles nicely in view. Closing all its foldouts doesn't
-  // shrink it back immediately — it waits a few seconds in case
-  // another foldout is about to be opened — and scrolling a good
-  // distance away from it reverts immediately, no delay.
+  // FOCUS MODE
+  // ---------------------------------------------------------------------
+  // "View More" turns a card into the only thing on screen: the header,
+  // the clip, the spec rows and the button row are all hidden (CSS —
+  // see .panel.expanded) and the systems list, which isn't shown at all
+  // on a collapsed card, takes over the whole box — as a rail of titles
+  // plus a content pane on desktop, as a stacked accordion on a phone.
+  // The card also breaks out to nearly the full viewport width and takes
+  // a fixed screenful of height, while remaining a totally normal
+  // in-flow element: anything after it still gets pushed down by its
+  // real height, same as always. The "Back" button (and Esc) puts it
+  // back. Exactly one foldout is open the whole time — see ensureOneOpen
+  // here and the matching refusal-to-close in the accordion above.
+  //
+  // Entering and leaving are both deliberate clicks now, so there is no
+  // auto-revert: opening and closing foldouts no longer resizes the
+  // card, and scrolling around inside a long systems list is expected
+  // rather than a signal that the visitor is done. The only involuntary
+  // exit left is one card handing off to another — see instantRevert.
   //
   // The resize itself is done with a FLIP animation (measure before,
   // snap to the final CSS state, fake the old position/size with a
@@ -2758,32 +3035,165 @@ private void CheckForMovablePlatform()
   // thing that's animated reliably and consistently across every
   // browser we tested this on, unlike several more "obvious" CSS
   // properties earlier in this project.
-  //
-  // Uses a MutationObserver on the `open` attribute rather than the
-  // `toggle` event — some browsers don't reliably fire `toggle` when
-  // `open` is set via script (which is how the accordion above works),
-  // but a MutationObserver picks up the change regardless of cause.
   (function(){
-    var REVERT_DELAY = 30000; // ms after the last foldout closes
-    var SCROLL_AWAY_THRESHOLD = 350; // px — only a sizeable scroll counts
     var FLIP_DURATION = FOLDOUT_ANIMATION_MS;
     var NAV_CLEARANCE = 70; // roughly the sticky header's height + a gap
+    // The box shrinks over exactly the same FLIP_DURATION it grows over
+    // — it was 360ms, which is what made leaving read as much slower
+    // than entering even though the totals were similar: the box is the
+    // thing you actually watch, and it was taking nearly twice as long
+    // in one direction as the other.
+    //
+    // The layout is committed 10ms after the shrink lands. By then the
+    // contents' fade-out has finished too (150ms + 50ms delay = 200ms,
+    // see the CSS), so the commit — the focus contents vanishing and the
+    // collapsed card's own clip and specs coming back — happens at the
+    // exact moment the box arrives at its collapsed size, instead of
+    // leaving a shrunken ghost of the focus layout sitting in a
+    // card-sized box waiting for a longer animation to finish.
+    var EXIT_MS = FLIP_DURATION + 10;
+    // Scrolling a good distance away from an expanded card drops it out
+    // of focus mode, no delay — a visitor who has scrolled past it is
+    // done with it, and leaving a screen-tall card expanded behind them
+    // just makes the rest of the page feel further away than it is.
+    var SCROLL_AWAY_THRESHOLD = 350; // px — only a sizeable scroll counts
+    var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     // Shared by flip() and animateSiblingShift() below: fake an element's
     // old position/size with a transform, then animate that transform
     // away to identity — the FLIP technique.
-    function animateTransform(el, fromTransform, toTransform){
+    function animateTransform(el, fromTransform, toTransform, duration){
       el.style.transition = 'none';
       el.style.transform = fromTransform;
       void el.offsetWidth;
-      el.style.transition = 'transform ' + FLIP_DURATION + 'ms ease-out';
+      el.style.transition = 'transform ' + (duration || FLIP_DURATION) + 'ms ease-out';
       el.style.transform = toTransform;
     }
 
+    // Everything laid out after `el`: its following siblings, then its
+    // parent's, and so on up to <body>. When a card changes height this
+    // is exactly the set of things that move because of it — the other
+    // project cards, but also #prototypes, #skills, #contact and the
+    // footer below them.
+    //
+    // This used to be just the sibling .panels, and that was the whole
+    // "scrolling away snaps the page" bug: a visitor who has scrolled
+    // far enough to trigger the scroll-away exit is by definition
+    // looking at the sections *below* the grid, and those were the ones
+    // left out — so they held still through the animation and then
+    // jumped ~300px the moment the layout committed. Compensating for
+    // that by moving the scroll position instead only moves the jump
+    // onto the card. The fix is for nothing to be left out.
+    //
+    // Fixed-position elements are skipped: they don't move with the flow
+    // anyway, and handing them a transformed ancestor would make them
+    // stop being fixed at all (that's the two modal backdrops). So are
+    // unrendered ones, which is every trailing <script>.
+    function elementsAfter(el){
+      var out = [];
+      var node = el;
+      while (node && node !== document.body && node.parentElement){
+        for (var sib = node.nextElementSibling; sib; sib = sib.nextElementSibling){
+          var cs = getComputedStyle(sib);
+          if (cs.position === 'fixed' || cs.display === 'none') continue;
+          out.push(sib);
+        }
+        node = node.parentElement;
+      }
+      return out;
+    }
+
+    function rectOf(el){ return el.getBoundingClientRect(); }
+
+    // Every measure-and-mutate below either removes a card's expanded
+    // state to find out where things would land, or commits that change
+    // for real. Both make the document hundreds of pixels taller or
+    // shorter part-way through the function, and the browser's scroll
+    // anchoring responds by moving the scroll position underneath — which
+    // silently poisons the measurement. Observed directly: collapsing an
+    // expanded card mid-measure took scrollY from 1600 to 1300, so every
+    // element below it read as having moved 0px (the layout moved -299,
+    // the page moved -300, they cancelled) and therefore got no
+    // fake-old-position transform at all, while the card itself picked up
+    // a bogus 299px offset. Nothing below was faked, so everything below
+    // jumped the moment the layout committed — and anchoring fired again
+    // there too. That pair *was* the "scrolling away snaps the page" bug.
+    //
+    // So: anchoring off for the duration, and the scroll position put
+    // back exactly where it was regardless. The restore is the belt to
+    // overflow-anchor's braces — it holds even if a browser ignores the
+    // property or applies it a beat late.
+    function withoutScrollAnchoring(fn){
+      var html = document.documentElement;
+      var prevAnchor = html.style.overflowAnchor;
+      var prevBehavior = html.style.scrollBehavior;
+      var scrollBefore = window.scrollY;
+      html.style.overflowAnchor = 'none';
+      // Any correction made in here has to be instant: <html> is
+      // scroll-behavior:smooth site-wide, and an animated correction is
+      // precisely what "snapping back to the project" looked like.
+      html.style.scrollBehavior = 'auto';
+      try {
+        return fn();
+      } finally {
+        if (Math.abs(window.scrollY - scrollBefore) > 0.5) window.scrollTo(0, scrollBefore);
+        html.style.overflowAnchor = prevAnchor;
+        html.style.scrollBehavior = prevBehavior;
+      }
+    }
+
+    // The exit is the entrance played backwards, which means the contents
+    // have to still be on screen while the box shrinks around them.
+    // flip() can't do that: it commits the new layout up front, and the
+    // instant .expanded comes off, .systems is display:none and there is
+    // nothing left to slide. So this measures where the card is *going*
+    // without going there — apply the collapsed state, measure, put it
+    // straight back, all within one frame so nothing paints in between —
+    // then animates the card (and its neighbours, so they travel at the
+    // same time rather than jumping at the end) toward that geometry
+    // while the DOM still considers it expanded. The real layout change
+    // is committed once the motion has landed, see finishRevert.
+    function flipToward(panel, applyChanges, undoChanges, duration){
+      var siblings = elementsAfter(panel);
+      var panelFirst, panelLast, sibFirst, sibLast;
+
+      withoutScrollAnchoring(function(){
+        panelFirst = rectOf(panel);
+        sibFirst = siblings.map(rectOf);
+
+        applyChanges();
+        panelLast = rectOf(panel);
+        sibLast = siblings.map(rectOf);
+        undoChanges();
+      });
+
+      animateTransform(panel,
+        'translate(0,0) scale(1,1)',
+        'translate(' + (panelLast.left - panelFirst.left) + 'px,' +
+                       (panelLast.top - panelFirst.top) + 'px) scale(' +
+                       (panelLast.width / panelFirst.width) + ',' +
+                       (panelLast.height / panelFirst.height) + ')',
+        duration);
+
+      siblings.forEach(function(el, i){
+        var dy = sibLast[i].top - sibFirst[i].top;
+        if (Math.abs(dy) < 1) return;
+        animateTransform(el, 'translate(0,0)', 'translate(0,' + dy + 'px)', duration);
+      });
+
+      return siblings;
+    }
+
     function flip(panel, applyChanges){
-      var first = panel.getBoundingClientRect();
-      applyChanges();
-      var last = panel.getBoundingClientRect();
+      var first, last;
+      // Same anchoring hazard as flipToward — this one grows the card
+      // rather than shrinking it, but a scroll shifted underneath the
+      // two measurements corrupts them exactly the same way.
+      withoutScrollAnchoring(function(){
+        first = panel.getBoundingClientRect();
+        applyChanges();
+        last = panel.getBoundingClientRect();
+      });
       var scaleX = first.width / last.width;
       var scaleY = first.height / last.height;
       var dx = first.left - last.left;
@@ -2841,17 +3251,16 @@ private void CheckForMovablePlatform()
       });
     }
 
-    // Wraps flip() so that when a card grows/shrinks and pushes the
-    // other cards down/up, those other cards ease into their new spot
-    // too instead of snapping there instantly — the layout change itself
-    // is still instant (that's just how document flow works), but we
-    // fake their old position with a transform and animate it away, the
-    // same trick flip() uses for the card that's actually resizing.
+    // Wraps flip() so that when a card grows and pushes everything below
+    // it down, all of that eases into its new spot too instead of
+    // snapping there instantly — the layout change itself is still
+    // instant (that's just how document flow works), but we fake the old
+    // positions with transforms and animate them away, the same trick
+    // flip() uses for the card that's actually resizing. Same set as the
+    // exit uses (elementsAfter), so a card growing and a card shrinking
+    // move exactly the same things.
     function flipWithSiblings(panel, applyChanges){
-      var container = panel.parentNode;
-      var siblings = Array.from(container.children).filter(function(el){
-        return el !== panel && el.classList && el.classList.contains('panel');
-      });
+      var siblings = elementsAfter(panel);
       var firstRects = siblings.map(function(el){ return el.getBoundingClientRect(); });
 
       var finalRect = flip(panel, applyChanges);
@@ -2865,71 +3274,123 @@ private void CheckForMovablePlatform()
     var allPanels = document.querySelectorAll('.panel');
 
     allPanels.forEach(function(panel){
-      var body = panel.querySelector('.panel-body');
       var detailsEls = panel.querySelectorAll('details.system');
-      if (!body || detailsEls.length === 0) return;
+      var moreBtn = panel.querySelector('.view-more');
+      var backBtn = panel.querySelector('.focus-back');
+      if (detailsEls.length === 0 || !moreBtn) return;
 
-      var revertTimer = null;
-      var systemsContainer = panel.querySelector('.systems');
       var isExpanded = false;
+      // Where the page settled when this card opened, and a short grace
+      // period after that — both for the scroll-away exit further down.
       var scrollRef = null;
       var suppressScrollCheckUntil = 0;
 
+      // Focus mode shows the systems list and nothing else, so opening
+      // onto a list with everything shut would be an empty card (and, in
+      // the desktop rail/pane layout, a rail beside a blank pane). The
+      // accordion refuses to close the last open one; this is the other
+      // half of that rule — guaranteeing there IS one to begin with.
+      function ensureOneOpen(){
+        for (var i = 0; i < detailsEls.length; i++){
+          if (detailsEls[i].open) return;
+        }
+        detailsEls[0].open = true;
+        detailsEls[0].dispatchEvent(new Event('toggle'));
+      }
+
+      // Every exit resets the card to its first foldout, so re-entering
+      // always starts at the top of the list rather than dropping the
+      // visitor back into whatever they happened to be reading last
+      // time. Closing everything is all it takes — ensureOneOpen() picks
+      // the first one on the way back in. Clearing the inline height and
+      // overflow matters on mobile, where these are real accordions and
+      // an interrupted animation can leave a pixel height pinned on.
+      function resetSelection(){
+        detailsEls.forEach(function(d){
+          var body = d.querySelector('.system-body');
+          if (body) body.classList.remove('pane-enter');
+          d.style.height = '';
+          d.style.overflow = '';
+          if (!d.open) return;
+          d.open = false;
+          d.dispatchEvent(new Event('toggle'));
+        });
+      }
+
+      // The "View More" button is the card's only announcement of the
+      // systems list's existence, so it's also the thing that has to
+      // tell a screen reader whether that list is currently showing.
+      function setState(expanded){
+        isExpanded = expanded;
+        panel.classList.toggle('expanded', expanded);
+        moreBtn.setAttribute('aria-expanded', String(expanded));
+      }
+
+      // The exit animates before it commits, so between the click and
+      // the actual layout change there's a window where the card is
+      // still expanded as far as the DOM is concerned but already on its
+      // way out. exitTimer is what keeps a second click, an Esc, or
+      // another card's hand-off from starting a second exit on top of
+      // the one in flight; exitSiblings is the neighbours currently
+      // carrying a preview transform, which has to be cleaned up
+      // whichever way the exit ends.
+      var exitTimer = null;
+      var exitSiblings = [];
+
+      function clearExitTimer(){
+        clearTimeout(exitTimer);
+        exitTimer = null;
+      }
+
+      function clearSiblingTransforms(){
+        exitSiblings.forEach(function(el){
+          el.style.transition = 'none';
+          el.style.transform = '';
+          void el.offsetWidth;
+          el.style.transition = '';
+        });
+        exitSiblings = [];
+      }
+
+      // .focus-leaving always comes off in the same breath as .expanded,
+      // never before it. Dropping it first would leave the card matching
+      // the *entrance* rule for however long it took to also drop
+      // .expanded — and anything that forces a style recalc in that gap
+      // (the FLIP's own measurement does) would start the contents
+      // sliding back in for a frame on the way out.
+      function clearFocusClasses(){
+        setState(false);
+        panel.classList.remove('focus-leaving');
+      }
+
       var controller = {
-        // Rotating a phone (or resizing a window) down past the
-        // breakpoint while a card is expanded would otherwise leave a
-        // card still carrying .expanded — 94vw wide with a -47vw margin
-        // — on a screen the mobile CSS never intended it for. This drops
-        // focus mode without touching the visitor's open foldout: they
-        // rotated their phone, they didn't ask to close anything.
-        demoteToMobile: function(){
-          clearTimeout(revertTimer);
-          if (!isExpanded) return;
-          isExpanded = false;
+        instantRevert: function(){
+          clearExitTimer();
+          clearSiblingTransforms();
           scrollRef = null;
+          if (!isExpanded){ panel.classList.remove('focus-leaving'); return; }
           if (currentExpandedController === controller) currentExpandedController = null;
+          // No FLIP and no sibling animation here — this only runs as an
+          // immediate hand-off right before a *different* card takes
+          // over as the expanded one, so it needs to be fully resolved
+          // instantly rather than mid-animation, otherwise the new
+          // card's "where do I scroll to" measurement would be based on
+          // a layout that's still in the middle of changing underneath
+          // it.
+          resetSelection();
           panel.style.transition = 'none';
           panel.style.transform = '';
-          panel.classList.remove('expanded');
-          body.classList.remove('shrink-media');
+          clearFocusClasses();
           void panel.offsetWidth;
           panel.style.transition = '';
         },
-        instantRevert: function(){
-          clearTimeout(revertTimer);
-          if (!isExpanded) return;
-          isExpanded = false;
-          scrollRef = null;
-          if (currentExpandedController === controller) currentExpandedController = null;
-          // No FLIP, no sibling animation, no foldout-closing animation
-          // here — this only runs as an immediate hand-off right before
-          // a *different* card takes over as the expanded one, so it
-          // needs to be fully resolved instantly rather than mid-animation,
-          // otherwise the new card's "where do I scroll to" measurement
-          // would be based on a layout that's still in the middle of
-          // changing underneath it.
-          detailsEls.forEach(function(d){
-            d.open = false;
-          });
-          if (systemsContainer && window.__reorderSystemsInstant) window.__reorderSystemsInstant(systemsContainer);
-          panel.style.transition = 'none';
-          panel.style.transform = '';
-          panel.classList.remove('expanded');
-          body.classList.remove('shrink-media');
-          void panel.offsetWidth;
-          panel.style.transition = '';
-        }
+        // Exposed so the page-level Esc handler can close whichever card
+        // happens to be open without knowing which one that is.
+        revert: function(){ revert(); }
       };
 
       function expand(){
         if (isExpanded) return;
-
-        // Below the same breakpoint where the card layout itself
-        // switches to stacked (mobile), there's no useful way to make a
-        // card "bigger" — the screen is already showing about as much
-        // of it as it can. Foldouts still open normally; the card just
-        // doesn't try to grow/break out/auto-scroll on top of that.
-        if (window.innerWidth <= FOCUS_MODE_BREAKPOINT) return;
 
         // Only one card is ever expanded at a time. If a different one
         // currently is, hand off to it instantly and completely first —
@@ -2940,77 +3401,163 @@ private void CheckForMovablePlatform()
           currentExpandedController.instantRevert();
         }
 
-        isExpanded = true;
         currentExpandedController = controller;
 
-        var finalRect = flipWithSiblings(panel, function(){
-          panel.classList.add('expanded');
-          body.classList.add('shrink-media');
-        });
-
-        scrollRef = scrollToShow(finalRect);
-        // Ignore scroll-away checks briefly — this programmatic
-        // smooth-scroll would otherwise look like the visitor
-        // scrolling away from the card they just opened.
-        suppressScrollCheckUntil = Date.now() + 700;
-      }
-
-      function closeAllFoldouts(){
-        var reg = window.__accordionRegistry;
+        // On the way in, the whole card's contents slide in together
+        // (focus-enter). A pane left carrying .pane-enter from the last
+        // visit would play its own slide on top of that, in the opposite
+        // direction — so the per-selection animation is cleared here and
+        // only re-applied when the visitor actually picks a foldout.
         detailsEls.forEach(function(d){
-          if (!d.open) return;
-          var acc = reg && reg.get(d);
-          if (acc) acc.shrink(); else d.open = false;
+          var body = d.querySelector('.system-body');
+          if (body) body.classList.remove('pane-enter');
         });
-        if (systemsContainer && window.__reorderSystemsInstant) window.__reorderSystemsInstant(systemsContainer);
+
+        // Both inside the FLIP's applyChanges, so the "after" measurement
+        // it takes is of the final layout — selection included — rather
+        // than of an empty card that then fills a frame later.
+        var finalRect = flipWithSiblings(panel, function(){
+          setState(true);
+          ensureOneOpen();
+        });
+
+        // Remember where the card came to rest — that's the reference
+        // the scroll-away exit measures against — and ignore scroll
+        // checks briefly, since the smooth-scroll this kicks off would
+        // otherwise look exactly like scrolling away from it.
+        scrollRef = scrollToShow(finalRect);
+        suppressScrollCheckUntil = Date.now() + 700;
+
+        // The systems list was display:none a moment ago, so nothing in
+        // it has ever been focusable. Handing focus to the way back out
+        // means a keyboard visitor's next Tab starts inside the card
+        // they just opened rather than back at the top of the page.
+        if (backBtn) backBtn.focus({ preventScroll:true });
       }
 
-      function revert(){
-        if (!isExpanded) return;
-        isExpanded = false;
-        scrollRef = null;
+      // The mirror of expand(): the box shrinks and the contents slide
+      // out at the same time, off the same click, exactly as they grow
+      // and slide in together on the way in. What it can't mirror is
+      // *when* the layout changes — the entrance can commit .expanded on
+      // frame one and let the FLIP fake the old geometry, but doing that
+      // here would take .systems to display:none immediately and leave
+      // nothing to slide. So the motion runs first against a measured
+      // target (flipToward) and the layout follows once it has landed.
+      //
+      // The commit is on a timer rather than `animationend` because
+      // several elements animate — the Back button, the systems list,
+      // the card, its neighbours — and any of them could finish last. A
+      // timer matched to the CSS durations is one source of truth
+      // instead of a race, and it still fires if the animations never
+      // run at all (in a background tab, say).
+      // `keepScroll` is for the scroll-away exit: the visitor is already
+      // scrolling somewhere, and yanking the page back to a card they
+      // just left would fight them. Every deliberate exit (Back, Esc)
+      // does want the card put back in front of them.
+      function revert(keepScroll){
+        if (!isExpanded || exitTimer) return;
+        scrollRef = null; // stop scroll-away firing again mid-exit
+        if (reduceMotion){ finishRevert(keepScroll); return; }
+
+        panel.classList.add('focus-leaving');
+        exitSiblings = flipToward(panel, function(){
+          panel.classList.remove('expanded', 'focus-leaving');
+        }, function(){
+          panel.classList.add('expanded', 'focus-leaving');
+        }, FLIP_DURATION);
+
+        exitTimer = setTimeout(function(){ finishRevert(keepScroll); }, EXIT_MS);
+      }
+
+      function finishRevert(keepScroll){
+        clearExitTimer();
+        if (!isExpanded){
+          panel.classList.remove('focus-leaving');
+          clearSiblingTransforms();
+          return;
+        }
         if (currentExpandedController === controller) currentExpandedController = null;
 
-        closeAllFoldouts();
+        // Back to the first foldout for next time. Done here, while the
+        // card is still .expanded, rather than after it's hidden: the
+        // clip-level IntersectionObserver only pauses a clip when its
+        // visibility actually *changes*, so closing a foldout after the
+        // container is already display:none would leave its video
+        // playing to nobody. Closing all of them rather than opening the
+        // first is enough — ensureOneOpen() picks the first on the way
+        // back in, and it means no clip is started here only to be
+        // stopped a frame later.
+        resetSelection();
 
-        flipWithSiblings(panel, function(){
-          panel.classList.remove('expanded');
-          body.classList.remove('shrink-media');
-        });
+        commitCollapse();
 
-        setTimeout(function(){
-          panel.style.transition = '';
-          panel.style.transform = '';
-        }, FLIP_DURATION + 20);
-      }
-
-      function update(){
-        var openCount = 0;
-        detailsEls.forEach(function(d){ if (d.open) openCount++; });
-
-        clearTimeout(revertTimer);
-
-        if (openCount > 0){
-          expand();
-        } else if (isExpanded){
-          revertTimer = setTimeout(revert, REVERT_DELAY);
+        if (keepScroll){
+          // Focus stays put too. Pushing it onto a button in a card the
+          // visitor has scrolled past is another way to get dragged back
+          // there, and they never asked to close anything — they just
+          // kept scrolling.
+          return;
         }
+
+        // The card shrank by most of a screen on the way out, so without
+        // this the visitor is left looking at whatever has moved up into
+        // that space — usually a completely different project. Put the
+        // card they were just reading back in front of them, and their
+        // focus with it.
+        scrollToShow(panel.getBoundingClientRect());
+        moreBtn.focus({ preventScroll:true });
       }
 
+      // By this point every single thing the collapse moves is already
+      // sitting where the collapsed layout will put it: the card by its
+      // own transform, and everything laid out after it (the other
+      // cards, the sections below them, the footer) by theirs. So the
+      // two steps here — commit the real layout, then drop the fake
+      // transforms — cancel out exactly. They have to happen in that
+      // order and with no paint in between, which is what makes the
+      // swap invisible: reversed, the page would jump a card's height
+      // and back again.
+      //
+      // Nothing moves, so there is deliberately no scroll correction
+      // here. An earlier version compensated the scroll position for the
+      // document getting shorter, which just relocated the jump from the
+      // sections below the card onto the card itself. Scroll anchoring
+      // is disabled across the commit for the same reason — with the
+      // page already stable there is nothing for it to correct, and any
+      // adjustment it made would be a jump rather than the fix for one.
+      // (It would be an *animated* jump, at that: <html> is
+      // scroll-behavior:smooth site-wide.)
+      function commitCollapse(){
+        withoutScrollAnchoring(function(){
+          panel.style.transition = 'none';
+          panel.style.transform = '';
+          clearFocusClasses();
+          void panel.offsetWidth;
+          panel.style.transition = '';
+          clearSiblingTransforms();
+        });
+      }
+
+      // Scrolling well away from an expanded card exits it. scrollRef is
+      // the position the card settled at when it opened, so this measures
+      // "how far from the card" rather than "how fast" — a slow drift
+      // and a flick both count once they've covered the distance.
       panel.__checkScrollAway = function(){
-        if (scrollRef === null) return;
+        if (scrollRef === null || exitTimer) return;
+        // The programmatic smooth-scroll that put the card in view is
+        // itself a scroll; without this it would read as the visitor
+        // immediately scrolling away from what they just opened.
         if (Date.now() < suppressScrollCheckUntil) return;
         if (Math.abs(window.scrollY - scrollRef) > SCROLL_AWAY_THRESHOLD){
-          clearTimeout(revertTimer);
-          revert();
+          revert(true);
         }
       };
 
-      var observer = new MutationObserver(update);
-      detailsEls.forEach(function(d){
-        observer.observe(d, { attributes:true, attributeFilter:['open'] });
-      });
-      update();
+      moreBtn.addEventListener('click', function(){ expand(); });
+      // Not `addEventListener('click', revert)` — that hands the click
+      // event in as the first argument, and a MouseEvent is truthy, so
+      // every Back click would silently take the keepScroll path.
+      if (backBtn) backBtn.addEventListener('click', function(){ revert(); });
     });
 
     window.addEventListener('scroll', rafThrottle(function(){
@@ -3019,16 +3566,16 @@ private void CheckForMovablePlatform()
       });
     }), { passive:true });
 
-    // Debounced to settle once, like the other resize handlers here.
-    var breakpointTimer = null;
-    window.addEventListener('resize', function(){
-      clearTimeout(breakpointTimer);
-      breakpointTimer = setTimeout(function(){
-        if (isMobileLayout() && currentExpandedController){
-          currentExpandedController.demoteToMobile();
-        }
-      }, 150);
-    }, { passive:true });
+    // Esc is the other half of the Back button. Guarded on the two
+    // modals, which run their own Esc handlers — a visitor closing a
+    // code snippet with Esc means "close the snippet", not "and also
+    // throw me out of the project I was reading it in".
+    document.addEventListener('keydown', function(e){
+      if (e.key !== 'Escape') return;
+      if (!currentExpandedController) return;
+      if (document.querySelector('.modal-backdrop.open')) return;
+      currentExpandedController.revert();
+    });
   })();
 
 
@@ -3392,13 +3939,12 @@ private void CheckForMovablePlatform()
   })();
 
   // Nav sizing: big only at the very top of the page. Driven by *action*
-  // first — pressing Home, or the hero/projects scroll-snap kicking in —
-  // each of which locks the state immediately (before any scrolling has
-  // actually happened) and holds it for LOCK_MS so a scroll event mid-
-  // animation can't flip it back. Plain scroll position is only the
-  // fallback, for anything that isn't one of those explicit actions
+  // first — a nav tab click, which locks the state immediately (before
+  // any scrolling has actually happened) and holds it for LOCK_MS so a
+  // scroll event mid-animation can't flip it back. Plain scroll position
+  // is only the fallback, for anything that isn't an explicit click
   // (direct #hash links, browser back/forward, keyboard scrolling,
-  // scrollbar dragging).
+  // scrollbar dragging, plain wheel scrolling).
   //
   // Setting --nav-h here is what actually drives the nav's height AND the
   // hero's fill-height (both read this one variable in CSS), so they can
@@ -3469,97 +4015,6 @@ private void CheckForMovablePlatform()
       clearTimeout(navHeightResizeTimer);
       navHeightResizeTimer = setTimeout(function(){ if (!locked) update(); }, 150);
     }, { passive:true });
-  })();
-
-  // Hero ⇄ Projects scroll snap: while sitting in the hero, any downward
-  // scroll jumps straight to the top of Projects; scrolling up from the
-  // top of Projects snaps back to the hero. Only engages at that one
-  // boundary — inside Projects (or below), scrolling is normal. Desktop
-  // only, matching the other hero behavior above.
-  (function(){
-    var projects = document.getElementById('projects');
-    if (!projects) return;
-
-    var snapping = false;
-    var cooldownUntil = 0;
-
-    function projectsSnapTop(){
-      // Mirrors the scroll-margin-top the CSS gives these sections at each
-      // width (see the "Section headers" block), so this and the browser's
-      // own scrollIntoView() agree on where the top of Projects is.
-      var margin = window.innerWidth <= 640 ? 56 : 40;
-      return Math.max(0, projects.getBoundingClientRect().top + window.scrollY - margin);
-    }
-
-    function snapTo(id){
-      snapping = true;
-      window.__scrollToSection(id);
-
-      // Unlock when the page actually stops moving (a few still frames),
-      // rather than after a fixed guess — a fast fling and a slow nudge
-      // take different amounts of time to settle. Safety timeout in case
-      // a scroll never fires (e.g. already at the target).
-      var lastY = null, still = 0;
-      function watch(){
-        if (!snapping) return;
-        var y = window.scrollY;
-        if (lastY !== null && Math.abs(y - lastY) < 1){
-          if (++still > 3){ snapping = false; cooldownUntil = Date.now() + 150; return; }
-        } else {
-          still = 0;
-        }
-        lastY = y;
-        requestAnimationFrame(watch);
-      }
-      requestAnimationFrame(watch);
-      setTimeout(function(){
-        if (snapping){ snapping = false; cooldownUntil = Date.now() + 150; }
-      }, 1200);
-    }
-
-    document.addEventListener('wheel', function(e){
-      if (window.innerWidth <= FOCUS_MODE_BREAKPOINT || !window.__scrollToSection) return;
-
-      // Mid-snap: swallow the scroll entirely so manual wheeling can't
-      // fight the animation (this is the fix for the "acts weird / doesn't
-      // snap" behavior on fast scrolls).
-      if (snapping){ e.preventDefault(); return; }
-      if (Date.now() < cooldownUntil){ e.preventDefault(); return; }
-
-      var y = window.scrollY;
-      var pTop = projectsSnapTop();
-
-      if (y < pTop - 2 && e.deltaY > 0){
-        e.preventDefault();
-        snapTo('projects');
-      } else if (y <= pTop + 2 && e.deltaY < 0){
-        e.preventDefault();
-        snapTo('home');
-      }
-    }, { passive:false });
-
-    // Position fallback: a fast fling can outrun the wheel handler and
-    // leave you resting *inside* the hero region (between the very top and
-    // the Projects boundary) without a snap ever firing. Watch scroll
-    // position and, if we end up parked in that interior zone, snap out
-    // to whichever end matches the direction we were travelling.
-    var lastY = window.scrollY;
-    window.addEventListener('scroll', rafThrottle(function(){
-      var y = window.scrollY;
-      var dir = y - lastY;
-      lastY = y;
-
-      if (window.innerWidth <= FOCUS_MODE_BREAKPOINT || !window.__scrollToSection) return;
-      if (snapping || Date.now() < cooldownUntil) return;
-
-      var pTop = projectsSnapTop();
-      // Only the interior counts — leave small deadzones at both ends so
-      // resting exactly at home (0) or at the Projects top doesn't fire.
-      if (y > 2 && y < pTop - 2){
-        if (dir < 0) snapTo('home');
-        else if (dir > 0) snapTo('projects');
-      }
-    }), { passive:true });
   })();
 </script>
 
