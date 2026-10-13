@@ -10,6 +10,12 @@
 <meta name="theme-color" content="#2d2d2f">
 <title>Tomer Ben Simhon — Unity Developer</title>
 <meta name="description" content="Unity / C# developer portfolio — player controllers, custom tools, and gameplay systems.">
+<!-- Link previews (LinkedIn, Slack, WhatsApp) and the browser-tab icon. -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Tomer Ben Simhon — Unity Developer">
+<meta property="og:description" content="Unity / C# developer portfolio — player controllers, custom tools, and gameplay systems.">
+<meta property="og:url" content="https://tomerbensimhon.github.io/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%232d2d2f'/%3E%3Ctext x='16' y='22' font-family='monospace' font-size='15' font-weight='700' fill='%235aabe8' text-anchor='middle'%3ETB%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -286,6 +292,13 @@
     box-shadow:0 0 0 3px var(--accent-border);
   }
   .btn.view-more:hover .btn-arrow{transform:translateX(3px);}
+
+  /* In the card footer the outbound links (Play / View Source) stay on the
+     left and View More is pushed to the right edge, so the gap alone sets
+     it apart as the card's main action, however many links sit beside it. */
+  .panel-foot .btn,
+  .focus-links .btn{padding:12px 18px; font-size:13.5px;}
+  .panel-foot .btn.view-more{margin-left:auto; font-size:15px; font-weight:700;}
 
   .copy-toast{
     position:absolute; top:-30px; left:0;
@@ -837,7 +850,21 @@
         pane-slide-in 320ms cubic-bezier(0.25, 0.46, 0.45, 0.94) both,
         focus-fade-in 130ms ease-out both;
     }
+
+    /* The card's outbound links (Play / View Source), pinned to the
+       bottom of the rail so they're still in reach once the footer they
+       normally live in is hidden. Same inset as the rail items. The JS
+       copies them in from .panel-foot, so the links are only written once. */
+    .panel.expanded .focus-links{
+      display:flex; flex-wrap:wrap; gap:8px;
+      position:absolute;
+      left:20px; bottom:16px;
+      width:calc(var(--rail-w) - 34px);
+    }
+    .panel.expanded .focus-links .btn{flex:1 1 auto; justify-content:center;}
   }
+  /* Desktop focus mode only — phones keep the plain accordion. */
+  .focus-links{display:none;}
 
   /* ---------- Focus-mode motion ----------
      Every one of these splits the movement and the fade into two
@@ -1405,6 +1432,7 @@
             <div class="field-row"><span class="label">Role</span><span class="value">Team project — All game mechanics and tools</span></div>
           </div>
           <div class="panel-foot">
+            <a class="btn" href="https://orenpapi.itch.io/skyroads-remake" target="_blank" rel="noopener">Play ↗</a>
             <a class="btn" href="https://github.com/TomerBenSimhon/Skyroads---Remake" target="_blank" rel="noopener">View Source ▸</a>
             <button class="btn view-more" type="button" aria-expanded="false">View More <span class="btn-arrow" aria-hidden="true">▸</span></button>
           </div>
@@ -2230,11 +2258,11 @@ private void ApplyCameraYawTorqueIfValid()
 
     <div class="project-grid">
 
-    <!-- PROJECT 4 - PLACEHOLDER -->
+    <!-- PROTOTYPE 1 - MAGNET ADVENTURE -->
     <div class="panel" data-accent="prototype">
       <button class="focus-back" type="button" aria-label="Back to project overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>Back</button>
       <div class="panel-head">
-        <span class="title"><span class="icon">◐</span>Magnet Adventure</span>
+        <span class="title"><span class="icon">◐</span>MagnetAdventure.cs</span>
         <span class="chip">Prototype — Systems Complete</span>
       </div>
       <div class="panel-body">
@@ -2526,13 +2554,6 @@ private void CheckForMovablePlatform()
         <div class="settings-row"><span class="label">Architecture</span><span class="value">Interface-driven modular systems, event-based effect systems, finite state machines</span></div>
       </div>
     </div>
-
-    <div class="settings-group">
-      <h3>Currently Learning</h3>
-      <div class="settings-list">
-        <div class="settings-row"><span class="label">—</span><span class="value">Add what you're studying next — Netcode, DOTS/ECS, shaders, etc.</span></div>
-      </div>
-    </div>
   </section>
 
   <section id="contact">
@@ -2545,7 +2566,6 @@ private void CheckForMovablePlatform()
       <a class="btn primary" id="email-link" href="mailto:tomerbensim0@gmail.com" data-email="tomerbensim0@gmail.com">Email ↗<span class="copy-toast" id="email-toast"></span></a>
       <a class="btn" href="https://github.com/TomerBenSimhon" target="_blank" rel="noopener">GitHub ↗</a>
       <a class="btn" href="https://www.linkedin.com/in/tomer-ben-simhon" target="_blank" rel="noopener">LinkedIn ↗</a>
-      <a class="btn" href="https://yourname.itch.io" target="_blank" rel="noopener">itch.io ↗</a>
     </div>
   </section>
 
@@ -3272,6 +3292,20 @@ private void CheckForMovablePlatform()
 
     var currentExpandedController = null;
     var allPanels = document.querySelectorAll('.panel');
+
+    // Copy each card's outbound links (everything in its footer except
+    // View More) into its systems list, where CSS pins them to the bottom
+    // of the focus-mode rail. Prepended, not appended, so the last
+    // <details> stays :last-child.
+    allPanels.forEach(function(panel){
+      var systems = panel.querySelector('.systems');
+      var links = panel.querySelectorAll('.panel-foot a.btn');
+      if (!systems || links.length === 0) return;
+      var box = document.createElement('div');
+      box.className = 'focus-links';
+      links.forEach(function(a){ box.appendChild(a.cloneNode(true)); });
+      systems.insertBefore(box, systems.firstChild);
+    });
 
     allPanels.forEach(function(panel){
       var detailsEls = panel.querySelectorAll('details.system');
